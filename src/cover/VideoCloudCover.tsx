@@ -57,6 +57,10 @@ type Phase = "draw" | "part" | "gone";
 const SHORT_RATE = 1.6;
 /** 영상을 못 틀 때(저전력 모드 · 형식 못 읽음) 첫 장면 그림을 이만큼 동안 커지며 사라지게 */
 const FALLBACK_MS = 450;
+/** 바퀴 끝 잇기: 재생 위치가 끝에서 이만큼(한 프레임 · 30 fps) 안쪽이면 끝난 것으로 본다 */
+const LOOP_END_TOLERANCE_S = 1 / 30;
+/** 바퀴 끝 잇기: 남은 바퀴가 지나고도 이만큼 신호가 없으면 그냥 잇는다 */
+const LOOP_SLACK_MS = 300;
 /** 걷힘 영상이 끝 신호를 안 줘도 이만큼 넘으면 거둔다 */
 const END_SLACK_MS = 1500;
 
@@ -246,21 +250,30 @@ function VideoCover({
     const waitPlaying = !!w && !w.paused && w.readyState >= 2;
     if (mode === "full" && switchAt === "loop" && w && waitPlaying) {
       // 한 바퀴 끝에서 잇는다 — 반복을 끄면 끝 프레임에서 멈추고(= 걷힘 첫 프레임) ended 가 온다.
-      // ended 가 끝내 안 오는 브라우저 · 기기도 있다(CI WebKit 에서 덮개가 8 초 넘게 남은 적이 있음 · 10-19) —
-      // 남은 바퀴 + 여유가 지나면 그냥 잇는다. 둘 중 먼저 온 쪽 한 번만
+      // WebKit 은 끝 한 프레임 앞(2.3999 / 2.4 초)에서 멈추고 ended 를 안 주는 때가 있다(클라우드 세션 잼 12번 중 3번 · CI 에서 8 초 넘게 남음 · 10-19) —
+      // iPad 도 WebKit 이라 세 길 중 먼저 온 쪽에서 한 번만 잇는다: ended · 재생 위치가 끝 한 프레임 안쪽(timeupdate) · 남은 바퀴 + 여유
       let done = false;
       const go = () => {
         if (done) return;
         done = true;
         clearTimeout(safety);
+        w.removeEventListener("timeupdate", nearEnd);
         playReveal();
+      };
+      const nearEnd = () => {
+        if (
+          Number.isFinite(w.duration) &&
+          w.currentTime >= w.duration - LOOP_END_TOLERANCE_S
+        )
+          go();
       };
       const left = Number.isFinite(w.duration)
         ? ((w.duration - w.currentTime) / (w.playbackRate || 1)) * 1000
         : WAIT_LOOP_MS;
-      const safety = setTimeout(go, Math.max(0, left) + END_SLACK_MS);
+      const safety = setTimeout(go, Math.max(0, left) + LOOP_SLACK_MS);
       w.loop = false;
       w.onended = go;
+      w.addEventListener("timeupdate", nearEnd);
       if (w.ended) go();
       return;
     }

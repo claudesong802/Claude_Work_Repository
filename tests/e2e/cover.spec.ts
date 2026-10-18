@@ -121,15 +121,7 @@ test("동작 줄이기(주소 칸)면 구름은 보이고, 펴질 때 조금만 
 
 test("첫 접속(견줌)은 크게 벌어진다 — 위 「작게」 가 재는 값이 실제로 가르는지", async ({
   page,
-  browserName,
 }) => {
-  // 데스크톱 WebKit(CI)은 이 큰 펴짐 동안 getBoundingClientRect 가 움직임을 안 돌려줘 0 이 나왔다(10-19 · 세 번 · 끝까지 못 짚음) —
-  // 같은 재기가 동작 줄이기의 작은 펴짐은 WebKit 에서도 잡고(위 시험 「> 0.005」 통과), iPad 흉내는 통과했다. 이 시험은 재기의 대조라 크롬에서만 돈다.
-  // 실제 움직임은 사용자 iPad mini 6 실기로 봄(10-19).
-  test.skip(
-    browserName !== "chromium",
-    "재기 대조 — 크롬에서만(까닭은 위 주석)",
-  );
   await page.goto("/?nomap=1&fresh=1&delay=2500&design=a&motion=full");
   await expect(cover(page)).toHaveAttribute("data-mode", "full");
   await expect(cover(page)).toHaveAttribute("data-shown", "1", {
