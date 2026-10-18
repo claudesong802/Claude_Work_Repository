@@ -1,5 +1,6 @@
-// 구름 그림 주소와 미리 받기. 이 모듈을 불러오는 순간(첫 묶음이 돌 때) 내려받기 · 해독을 시작한다 —
-// 덮개가 뜬 뒤에야 받기 시작하면 구름이 그만큼 늦게 뜬다.
+// 구름 그림 주소와 미리 받기. CloudCover 가 뜰 때(첫 화면) artReady() 를 불러 내려받기 · 해독을 시작한다.
+// 그 전까지는 코드에 든 흐린 미리보기(cloudblur)가 구름을 그리므로 늦게 시작해도 흰 화면이 없다(10-19).
+// 이 모듈을 불러오는 순간 받지 않는 까닭: 영상 덮개를 쓰는 앱도 이 모듈을 함께 묶는다(동작 줄이기 갈래) — 보통 영상 사용자가 PNG 구름을 받지 않게.
 import billowy from "./assets/cloud-billowy.webp";
 import curled from "./assets/cloud-curled.webp";
 import diagonal from "./assets/cloud-diagonal.webp";
@@ -8,7 +9,14 @@ import wide from "./assets/cloud-wide.webp";
 import wispy from "./assets/cloud-wispy.webp";
 import type { ArtName } from "./cloudshape";
 
-export const ART_URL: Record<ArtName, string> = { original, wide, billowy, diagonal, wispy, curled };
+export const ART_URL: Record<ArtName, string> = {
+  original,
+  wide,
+  billowy,
+  diagonal,
+  wispy,
+  curled,
+};
 
 let ready: Promise<void> | null = null;
 
@@ -26,5 +34,3 @@ export function artReady(): Promise<void> {
   ).then(() => undefined);
   return ready;
 }
-
-void artReady();

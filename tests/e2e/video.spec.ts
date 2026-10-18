@@ -141,3 +141,60 @@ test("영상 덮개 · 바퀴 끝 잇기: 기다림 영상의 ended 가 끝내 �
   // 한 바퀴 2.4 초 + 여유 1.5 초 + 걷힘 0.8 초(+ 걷힘의 ended 도 막혀 안전 시간 1.5 초) 안쪽
   await expect(cover(page)).toHaveCount(0, { timeout: 9000 });
 });
+
+test("영상 덮개 · 동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 0.15 초 안에 구름 그림이 풀려 보인다", async ({
+  page,
+}) => {
+  // lazy(Suspense)로 PNG 덮개를 불러올 땐 React 가 약 0.3 초 모아 보여 줘 흰 바탕만 보였다(10-19 잼 310 ms)
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shownAfter: number | null };
+    w.__shownAfter = null;
+    let coverAt: number | null = null;
+    const tick = () => {
+      if (document.querySelector(".cloudcover") && coverAt === null)
+        coverAt = performance.now();
+      const img = document.querySelector<HTMLImageElement>(".cloudcover-blur");
+      if (coverAt !== null && img && img.complete && img.naturalWidth > 0) {
+        w.__shownAfter = performance.now() - coverAt;
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.goto("/?engine=video&nomap=1&fresh=1&hang=1");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __shownAfter: number | null }).__shownAfter,
+      ),
+    )
+    .not.toBeNull();
+  const after = await page.evaluate(
+    () => (window as unknown as { __shownAfter: number | null }).__shownAfter,
+  );
+  expect(after!).toBeLessThan(150);
+});
+
+test("영상 덮개 · 보통 사용자는 PNG 구름 그림을 받지 않고, 동작 줄이기면 받는다", async ({
+  page,
+}) => {
+  const pngArt: string[] = [];
+  page.on("request", (r) => {
+    if (
+      /\/cloud-(original|wide|billowy|diagonal|wispy|curled)[^/]*\.webp/.test(
+        r.url(),
+      )
+    )
+      pngArt.push(r.url());
+  });
+  await page.goto("/?engine=video&motion=full&nomap=1&fresh=1&delay=300");
+  await expect(cover(page)).toHaveCount(0, { timeout: 8000 });
+  expect(pngArt).toEqual([]);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?engine=video&nomap=1&fresh=1&delay=300");
+  await expect(cover(page)).toHaveAttribute("data-sharp", "1");
+  expect(pngArt.length).toBeGreaterThan(0);
+});

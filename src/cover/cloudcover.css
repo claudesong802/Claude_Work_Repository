@@ -52,12 +52,16 @@
 
 /* 기다림: 덮은 채 천천히 흐름 — 몇 px 이동 · 크기 1.00 ~ 1.03(카메라가 천천히 앞으로) */
 .cloudcover-drift {
+  position: relative;
   width: 100%;
   height: 100%;
-  animation: cloudcover-drift var(--drift-s) var(--drift-phase) ease-in-out infinite alternate;
+  animation: cloudcover-drift var(--drift-s) var(--drift-phase) ease-in-out
+    infinite alternate;
 }
 
 .cloudcover-art {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -65,20 +69,32 @@
   -webkit-user-drag: none;
 }
 
+/* 흐린 미리보기(코드에 든 작은 그림) 위에 선명한 그림 — 선명한 그림이 다 풀리면(data-sharp) 겹쳐 나타난다(투명도만) */
+.cloudcover-sharp {
+  opacity: 0;
+}
+.cloudcover[data-sharp] .cloudcover-sharp {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
 /* 펴지기: 가운데 구름부터 · 가속(ease-in · 절반 시점에 35 % 진행) · 커지며 바깥으로 — 늦게 출발한 조각도 같은 때에 끝난다 */
 .cloudcover[data-phase="part"] .cloudcover-piece {
   animation: cloudcover-part calc(var(--cloudcover-part-ms) * (1 - var(--lag)))
-    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.32, 0, 0.6, 0.5) forwards;
+    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.32, 0, 0.6, 0.5)
+    forwards;
 }
 /* 화면 가운데 구름: 앞 45 % 안에 커지며 사라져 가운데 구멍이 먼저 열린다(영상의 0.8 초) */
 .cloudcover[data-phase="part"] .cloudcover-piece[data-burst] {
-  animation: cloudcover-burst calc(var(--cloudcover-part-ms) * 0.45) ease-out forwards;
+  animation: cloudcover-burst calc(var(--cloudcover-part-ms) * 0.45) ease-out
+    forwards;
 }
 
 /* 바탕은 펴지기 앞쪽에 사라져 가운데 구멍으로 지도가 먼저 보인다 */
 .cloudcover[data-phase="part"] .cloudcover-sheet,
 .cloudcover[data-phase="part"] .cloudcover-note {
-  animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out forwards;
+  animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out
+    forwards;
 }
 
 /* 동작 줄이기(B+): 구름 첫 장면은 보이되 흐름 없이 — 준비되면 가운데 구름부터(같은 lag) 조금만 바깥으로 벌어지며 옅어진다.
@@ -88,8 +104,10 @@
   animation: none;
 }
 .cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece,
-.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece[data-burst] {
-  animation: cloudcover-part-soft calc(var(--cloudcover-part-ms) * (1 - var(--lag) * 0.5))
+.cloudcover[data-mode="reduced"][data-phase="part"]
+  .cloudcover-piece[data-burst] {
+  animation: cloudcover-part-soft
+    calc(var(--cloudcover-part-ms) * (1 - var(--lag) * 0.5))
     calc(var(--cloudcover-part-ms) * var(--lag) * 0.5) ease-out forwards;
 }
 
@@ -106,7 +124,13 @@
   border-radius: 999px;
   background: var(--cloudcover-paper);
   text-align: center;
-  font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font:
+    500 14px/1.4 -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    system-ui,
+    sans-serif;
   letter-spacing: 0.02em;
   color: var(--cloudcover-ink);
 }
@@ -172,7 +196,8 @@
 }
 @keyframes cloudcover-part-soft {
   to {
-    transform: translate3d(calc(var(--dx) * 0.06), calc(var(--dy) * 0.06), 0) scale(1.05);
+    transform: translate3d(calc(var(--dx) * 0.06), calc(var(--dy) * 0.06), 0)
+      scale(1.05);
     opacity: 0;
   }
 }

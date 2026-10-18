@@ -139,17 +139,22 @@ test("동작 줄이기(prefers-reduced-motion)도 같은 갈래 · 기다리는 
   await page.goto("/?nomap=1&fresh=1&hang=1");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
   await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
-  const running = await page.evaluate(
+  // 「흐르지 않는다」 = 위치 · 크기를 바꾸는 애니메이션이 없다(선명한 그림이 겹쳐 나타나는 투명도 전환은 움직임이 아니다)
+  const moving = await page.evaluate(
     () =>
-      document
-        .getAnimations()
-        .filter(
-          (a) =>
-            (a.effect as KeyframeEffect | null)?.target instanceof Element &&
-            (a.effect as KeyframeEffect).target!.closest(".cloudcover-piece"),
-        ).length,
+      document.getAnimations().filter((a) => {
+        const e = a.effect as KeyframeEffect | null;
+        if (
+          !(e?.target instanceof Element) ||
+          !e.target.closest(".cloudcover-piece")
+        )
+          return false;
+        return e
+          .getKeyframes()
+          .some((k) => "transform" in k || "translate" in k || "scale" in k);
+      }).length,
   );
-  expect(running).toBe(0);
+  expect(moving).toBe(0);
 });
 
 test("기기가 동작 줄이기여도 motion=full 이면 첫 접속 모습(시연 확인용)", async ({
