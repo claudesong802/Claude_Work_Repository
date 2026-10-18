@@ -36,21 +36,23 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   useEffect(() => {
     const m = blank();
     window.__coverMarks = m;
+    // 펴지기 시작 · 끝 시각은 data-phase 변화로 잰다 — 메인 스레드가 막혀 rAF 가 한 번도 안 돌아도 놓치지 않게
+    const watch = () => {
+      const phase = document.querySelector<HTMLElement>(".cloudcover")?.dataset.phase ?? "gone";
+      if (phase !== "draw" && m.partAt === null) m.partAt = performance.now();
+      if (phase === "gone" && m.partAt !== null && m.goneAt === null) m.goneAt = performance.now();
+    };
+    const mo = new MutationObserver(watch);
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase"] });
+    // 프레임 간격: 한 프레임 구간이 펴지기 구간과 겹치면 펴지기 중 프레임으로 센다
     let last = performance.now();
     let raf = 0;
-    let phase: string | null = null;
     const tick = (t: number) => {
       const gap = t - last;
+      const overlapsPart = m.partAt !== null && t > m.partAt && last < (m.goneAt ?? Infinity);
       last = t;
-      const now = document.querySelector<HTMLElement>(".cloudcover")?.dataset.phase ?? "gone";
-      if (now !== phase) {
-        if (now === "part") m.partAt = t;
-        if (now === "gone" && m.goneAt === null) m.goneAt = t;
-        phase = now;
-      }
       m.maxGap = Math.max(m.maxGap, gap);
-      // 펴지기 동안의 프레임: 시작 프레임 다음부터 센다(시작 프레임의 간격은 그리기 쪽 몫)
-      if (phase === "part" && m.partAt !== t) {
+      if (overlapsPart) {
         m.partFrames++;
         m.maxGapPart = Math.max(m.maxGapPart, gap);
         if (gap > SLOW_FRAME_MS) m.slowFramesPart++;
@@ -59,7 +61,10 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      mo.disconnect();
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   useEffect(() => {
@@ -90,7 +95,6 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       <a href={link("a")}>a</a>
       <a href={link("b")}>b</a>
       <a href={link("c")}>c</a>
-      <a href={link("d")}>d</a>
       <a href={window.location.search}>새로고침</a>
     </div>
   );

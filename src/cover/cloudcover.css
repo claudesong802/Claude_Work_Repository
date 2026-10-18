@@ -1,10 +1,11 @@
 /* 구름 덮개 꼴 — 모든 클래스 앞머리는 cloudcover- · 전역 선택자(html · body · *)는 쓰지 않는다.
-   펴지기는 transform · opacity 만 움직인다(WebKit 이 합성 단계에서 따로 돌린다).
-   쓰지 않는 것: SVG 필터 · blur · backdrop-filter · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다. */
+   기다림 · 펴지기 모두 transform · opacity 만 움직인다(WebKit 이 합성 단계에서 따로 돌린다 · 구름 조각마다 레이어 하나).
+   쓰지 않는 것: SVG 필터 · blur · backdrop-filter · mask · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다.
+   구름 그림은 이 폴더의 WebP(assets/) — 같은 출처에서 첫 묶음과 함께 미리 받는다. */
 
 .cloudcover {
-  --cloudcover-paper: #ffffff; /* 지도 바탕과 같은 흰색 — 걷힌 뒤 이어지게 */
-  --cloudcover-ink: #333; /* 짙은 회색 펜 선 */
+  --cloudcover-paper: #ffffff; /* 지도 바탕 · 구름 안쪽과 같은 흰색 — 걷힌 뒤 이어지게 */
+  --cloudcover-ink: #333;
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -20,10 +21,21 @@
   pointer-events: none; /* 펴지는 동안 지도 터치를 막지 않는다 */
 }
 
+/* 처음부터 불투명한 바탕 — 그림이 풀리기 전에도 지도가 먼저 비치지 않는다 */
 .cloudcover-sheet {
   position: absolute;
   inset: 0;
   background: var(--cloudcover-paper);
+}
+
+/* 그림이 다 풀리면 구름을 짧게 띄운다 */
+.cloudcover-sky {
+  position: absolute;
+  inset: 0;
+  animation: cloudcover-show 220ms ease-out both;
+}
+.cloudcover[data-mode="short"] .cloudcover-sky {
+  animation: none;
 }
 
 /* ── 구름 조각: 조각마다 레이어 하나 ── */
@@ -34,85 +46,35 @@
   top: calc(var(--y) - var(--h) / 2);
   width: var(--w);
   height: var(--h);
+  z-index: var(--z);
   will-change: transform, opacity;
 }
 
+/* 기다림: 덮은 채 천천히 흐름 — 몇 px 이동 · 크기 1.00 ~ 1.03(카메라가 천천히 앞으로) */
 .cloudcover-drift {
   width: 100%;
   height: 100%;
   animation: cloudcover-drift var(--drift-s) var(--drift-phase) ease-in-out infinite alternate;
 }
 
-.cloudcover-svg {
+.cloudcover-art {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  transform: rotate(var(--rot)) scaleX(var(--flip));
+  -webkit-user-drag: none;
 }
 
-.cloudcover-fill {
-  fill: var(--cloudcover-paper);
-  stroke: none;
-  opacity: 0;
-  animation: cloudcover-show 220ms var(--f) ease-out forwards;
-}
-
-.cloudcover-stroke {
-  fill: none;
-  stroke: var(--cloudcover-ink);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* 틈을 길게 · 시작을 틈 안쪽으로 조금 더 — 길이 0 인 대시가 둥근 끝으로 점을 찍지 않게 */
-  stroke-dasharray: 1 2;
-  stroke-dashoffset: 1.01;
-  animation: cloudcover-draw var(--t) var(--d) cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
-
-/* 펜 결: 윤곽은 가는 선 한 줄(구름마다 굵기 살짝 다름) · 안쪽 곡선은 조금 가늘게 · 빗금은 더 가늘고 옅게 */
-.cloudcover-stroke-line {
-  stroke-width: var(--lw);
-}
-.cloudcover-stroke-inner {
-  stroke-width: calc(var(--lw) * 0.8);
-  stroke-opacity: 0.85;
-}
-
-.cloudcover-hatch {
-  fill: none;
-  stroke: var(--cloudcover-ink);
-  stroke-width: calc(var(--lw) * 0.6);
-  stroke-linecap: round;
-  stroke-opacity: 0.55;
-  opacity: 0;
-  animation: cloudcover-show var(--t) var(--d) ease-out forwards;
-}
-
-/* 같은 창 두 번째: 다 그려진 채로 시작해 펴지기만 */
-.cloudcover[data-mode="short"] .cloudcover-stroke {
-  animation: none;
-  stroke-dashoffset: 0;
-}
-.cloudcover[data-mode="short"] .cloudcover-fill,
-.cloudcover[data-mode="short"] .cloudcover-hatch {
-  animation: none;
-  opacity: 1;
-}
-
-/* 펴지기에 들어가면 그리기 애니메이션은 끈다(멈춘 모습은 CloudCover 가 inline 으로 남긴다) */
-.cloudcover[data-phase="part"] .cloudcover-stroke,
-.cloudcover[data-phase="part"] .cloudcover-fill,
-.cloudcover[data-phase="part"] .cloudcover-hatch {
-  animation: none;
-}
-
+/* 펴지기: 가운데 구름부터 · 가속(ease-in) · 커지며 바깥으로 — 늦게 출발한 조각도 같은 때에 끝난다 */
 .cloudcover[data-phase="part"] .cloudcover-piece {
   animation: cloudcover-part calc(var(--cloudcover-part-ms) * (1 - var(--lag)))
-    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.55, 0, 0.25, 1) forwards;
+    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.5, 0, 0.75, 0.3) forwards;
 }
 
+/* 바탕은 펴지기 앞쪽에 사라져 가운데 구멍으로 지도가 먼저 보인다 */
 .cloudcover[data-phase="part"] .cloudcover-sheet,
 .cloudcover[data-phase="part"] .cloudcover-note {
-  animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.55) ease-out forwards;
+  animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out forwards;
 }
 
 /* 동작 줄이기: 구름 없이 덮개 전체가 짧게 사라지기만 */
@@ -126,25 +88,25 @@
 
 .cloudcover-note {
   position: absolute;
+  z-index: 100;
   left: 0;
   right: 0;
   bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px));
-  margin: 0;
+  margin: 0 auto;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--cloudcover-paper);
   text-align: center;
   font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   letter-spacing: 0.02em;
   color: var(--cloudcover-ink);
-  opacity: 0.72;
 }
 
-@keyframes cloudcover-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 @keyframes cloudcover-show {
-  to {
-    opacity: 1;
+  from {
+    opacity: 0;
   }
 }
 @keyframes cloudcover-hide {
@@ -154,10 +116,10 @@
 }
 @keyframes cloudcover-drift {
   from {
-    transform: translate3d(-0.8vmax, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(0.8vmax, -0.4vmax, 0);
+    transform: translate3d(var(--drift-x), var(--drift-y), 0) scale(1.03);
   }
 }
 @keyframes cloudcover-part {

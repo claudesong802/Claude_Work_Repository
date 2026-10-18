@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ART_WAIT_MS,
   DEFAULT_CAP_MS,
   MIN_SHOW_MS,
   PART_MS,
@@ -22,7 +23,7 @@ function run(timing: CoverTiming, readyAfterMs: number | null) {
   if (readyAfterMs !== null) setTimeout(() => (readyAt = performance.now()), readyAfterMs);
   const log: { phase: string; at: number }[] = [];
   const step = () => {
-    const d = decideCover({ mountedAt, readyAt, now: performance.now(), timing });
+    const d = decideCover({ mountedAt, artAt: mountedAt, readyAt, now: performance.now(), timing });
     if (log.at(-1)?.phase !== d.phase) log.push({ phase: d.phase, at: performance.now() - mountedAt });
     if (d.waitMs !== null) setTimeout(step, d.waitMs);
   };
@@ -88,6 +89,35 @@ describe("decideCover", () => {
     const log = run(timingFor("reduced"), 10);
     vi.advanceTimersByTime(2000);
     expect(log[2].at - log[1].at).toBeCloseTo(REDUCED_PART_MS, 0);
+  });
+});
+
+describe("구름 그림을 기다리는 동안", () => {
+  const t = timingFor("full");
+  const at = (now: number, artAt: number | null, readyAt: number | null) =>
+    decideCover({ mountedAt: 0, artAt, readyAt, now, timing: t });
+
+  it("최소 보임은 그림이 준비돼 그리기가 시작된 때부터 센다", () => {
+    expect(at(900, 400, 100)).toMatchObject({ phase: "draw", partAt: 400 + MIN_SHOW_MS });
+    expect(at(1000, 400, 100)).toMatchObject({ phase: "part", partAt: 400 + MIN_SHOW_MS, reason: "ready" });
+  });
+
+  it("그림이 끝내 안 와도 1.2 초 뒤엔 그리기를 시작한 것으로 본다", () => {
+    expect(at(1700, null, 100)).toMatchObject({ phase: "draw", partAt: ART_WAIT_MS + MIN_SHOW_MS });
+    expect(at(ART_WAIT_MS + MIN_SHOW_MS, null, 100).phase).toBe("part");
+    // 그림이 그 뒤에 와도 시작 시각은 앞당겨지지도 늦춰지지도 않는다
+    expect(at(1700, 5000, 100).partAt).toBe(ART_WAIT_MS + MIN_SHOW_MS);
+  });
+
+  it("상한은 그림과 상관없이 덮개가 뜬 때부터", () => {
+    expect(at(DEFAULT_CAP_MS, null, null)).toMatchObject({ phase: "part", reason: "cap", partAt: DEFAULT_CAP_MS });
+  });
+
+  it("두 번째 · 동작 줄이기는 그림을 기다리지 않는다", () => {
+    for (const mode of ["short", "reduced"] as const) {
+      expect(timingFor(mode).artWaitMs).toBe(0);
+      expect(decideCover({ mountedAt: 0, artAt: null, readyAt: 10, now: 10, timing: timingFor(mode) }).phase).toBe("part");
+    }
   });
 });
 
