@@ -85,3 +85,13 @@ test("영상 덮개 · 같은 창 두 번째는 짧은 판", async ({ page }) =>
   await expect(page.locator('.cloudcover video[data-role="wait"]')).toHaveCount(0);
   await expect(cover(page)).toHaveCount(0, { timeout: 3000 });
 });
+
+test("영상 덮개 · 바퀴 끝 잇기: 기다림 영상의 ended 가 끝내 안 와도 남은 바퀴 + 여유 뒤에 걷힌다", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "기다림 영상을 확실히 트는 크롬에서만 — 못 트는 엔진은 대체 길로 간다");
+  // ended 를 붙잡는 브라우저 · 기기 흉내(CI WebKit 에서 덮개가 8 초 넘게 남은 적이 있음 · 10-19)
+  await page.addInitScript(() => document.addEventListener("ended", (e) => e.stopImmediatePropagation(), true));
+  await page.goto("/?engine=video&switch=loop&nomap=1&fresh=1&delay=500");
+  await expect(cover(page)).toHaveAttribute("data-phase", "draw");
+  // 한 바퀴 2.4 초 + 여유 1.5 초 + 걷힘 0.8 초(+ 걷힘의 ended 도 막혀 안전 시간 1.5 초) 안쪽
+  await expect(cover(page)).toHaveCount(0, { timeout: 9000 });
+});

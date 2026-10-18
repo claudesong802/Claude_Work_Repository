@@ -15,6 +15,7 @@ import {
   POSTER_URL,
   REVEAL_MS,
   VIDEO_URL,
+  WAIT_LOOP_MS,
   pickVideoKind,
   type VideoKind,
 } from "./cloudvideo";
@@ -244,10 +245,23 @@ function VideoCover({
     // 기다림이 아직 안 돌면(받는 중) 이을 바퀴가 없다 — 첫 장면 그림 위에서 곧바로 걷힘
     const waitPlaying = !!w && !w.paused && w.readyState >= 2;
     if (mode === "full" && switchAt === "loop" && w && waitPlaying) {
-      // 한 바퀴 끝에서 잇는다 — 반복을 끄면 끝 프레임에서 멈추고(= 걷힘 첫 프레임) ended 가 온다
+      // 한 바퀴 끝에서 잇는다 — 반복을 끄면 끝 프레임에서 멈추고(= 걷힘 첫 프레임) ended 가 온다.
+      // ended 가 끝내 안 오는 브라우저 · 기기도 있다(CI WebKit 에서 덮개가 8 초 넘게 남은 적이 있음 · 10-19) —
+      // 남은 바퀴 + 여유가 지나면 그냥 잇는다. 둘 중 먼저 온 쪽 한 번만
+      let done = false;
+      const go = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(safety);
+        playReveal();
+      };
+      const left = Number.isFinite(w.duration)
+        ? ((w.duration - w.currentTime) / (w.playbackRate || 1)) * 1000
+        : WAIT_LOOP_MS;
+      const safety = setTimeout(go, Math.max(0, left) + END_SLACK_MS);
       w.loop = false;
-      w.onended = () => playReveal();
-      if (w.ended) playReveal();
+      w.onended = go;
+      if (w.ended) go();
       return;
     }
     playReveal();
