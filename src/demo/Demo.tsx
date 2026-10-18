@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { CloudCover } from "../cover/CloudCover";
+import { VideoCloudCover } from "../cover/VideoCloudCover";
 import { DebugPanel } from "./DebugPanel";
 import { DemoMap } from "./DemoMap";
 import type { DemoParams } from "./params";
@@ -47,7 +48,17 @@ export function Demo({ params }: { params: DemoParams }) {
           />
         )}
       </div>
-      {coverGone ? null : (
+      {coverGone ? null : params.engine === "video" ? (
+        <VideoCloudCover
+          ready={ready}
+          note={warm ? "서버 준비 중" : null}
+          capMs={params.capMs}
+          switchAt={params.switchAt}
+          reducedMotion={params.reduced ? true : params.forceMotion ? false : undefined}
+          onGone={() => setCoverGone(true)}
+          onPartStart={setApproachMs}
+        />
+      ) : (
         <CloudCover
           ready={ready}
           note={warm ? "서버 준비 중" : null}

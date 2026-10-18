@@ -44,7 +44,9 @@ GitHub Actions: 푸시 · PR 마다 `검사`(typecheck · build · test · e2e),
 | `cap=<ms>` | 상한 바꾸기(기본 15000) | `?hang=1&cap=5000` |
 | `warm=<ms>` | 그동안 「서버 준비 중」 표시 · 준비 신호도 그 뒤 | `?warm=3000` |
 | `reduced=1` | 동작 줄이기 흉내(prefers-reduced-motion 과 같은 갈래) | `?reduced=1` |
-| `motion=full` | 기기의 「동작 줄이기」 를 무시하고 첫 접속 모습으로 — iPad 설정(손쉬운 사용 → 동작 → 동작 줄이기)이 켜져 있으면 구름 없이 흰 화면만 0.2 초에 사라진다 | `?motion=full` |
+| `motion=full` | 기기의 「동작 줄이기」 를 무시하고 첫 접속 모습으로 — iPad 설정(손쉬운 사용 → 동작 → 동작 줄이기)이 켜져 있으면 구름은 흐르지 않고, 준비되면 가운데부터 조금만 벌어지며 0.6 초에 옅어진다(B+ · 사용자 10-19) | `?motion=full` |
+| `engine=png\|video` | 덮개 그리는 방식 — png 구름 PNG 조각(기본) · video 투명 영상 두 토막(기다림 반복 → 걷힘) | `?engine=video` |
+| `switch=loop\|now` | 영상 덮개: 기다림 → 걷힘을 언제 잇나 — loop 한 바퀴(2.4 초) 끝에서(이음매 없음 · 기본) · now 곧바로(구름 자리가 살짝 튈 수 있음) | `?engine=video&switch=now` |
 | `fresh=1` | 같은 창 표시를 지우고 첫 접속처럼 | `?fresh=1` |
 | `debug=1` | 구석 진단: 갈래(첫 접속 · 두 번째 · 동작 줄이기)와 기기 동작 줄이기 설정 · 펴지기 중 프레임 수 · 가장 긴 간격 · 50 ms 넘은 프레임 수 · 지도 idle · 준비 · 펴지기 시작 → 끝 시각 · devicePixelRatio, 시안 · 하늘 바꾸기 고리 | `?debug=1` |
 | `nomap=1` | 지도 없이 시계로만 준비 신호(시험용) | `?nomap=1&delay=1000` |
@@ -82,7 +84,22 @@ GitHub Actions: 푸시 · PR 마다 `검사`(typecheck · build · test · e2e),
    | `onPartStart` | `(partMs: number) => void` | 펴지기가 시작될 때 한 번 — 시안 b 처럼 밑의 지도를 같이 움직일 때(지도 컨테이너에 `scale(1.04) → 1` 을 partMs 동안) |
    | `design` | `"a" \| "b" \| "c"` | 시안 단계에서만 — 고른 뒤 뺌 |
    | `sky` | `"dense" \| "mid" \| "sparse"` | 시안 단계에서만 — 고른 뒤 하나만 남김 |
-   | `reducedMotion` | `boolean` | 동작 줄이기를 밖에서 정함(없으면 media query) |
+   | `reducedMotion` | `boolean` | 동작 줄이기를 밖에서 정함(없으면 media query) — 켜지면 구름은 보이되 흐름 없이, 조금만 벌어지며 옅어진다(줄인 펴짐) |
 
 3. 덮개가 지도 묶음을 기다리지 않게 maplibre 를 `import()` 로 늦게 불러오는 편이 좋습니다 — 시연은 이렇게 해서 덮개가 첫 묶음(약 73 KB gzip)과 구름 그림(518 KB)만으로 뜹니다.
    `index.html` 의 `html, body` 바탕도 흰색으로 두면 자바스크립트가 오기 전 화면도 덮개와 같은 색입니다.
+
+## 영상 덮개(VideoCloudCover)
+
+`src/cover/VideoCloudCover.tsx` — PNG 덮개와 같은 판정(`coverclock`)에 투명 영상 두 토막을 얹는다. props 는 `CloudCover` 와 같고 `switchAt`(loop · now) · `kind`(시험용)가 더 있다.
+
+| 파일(`src/cover/assets/video/`) | 크기 | 쓰는 곳 |
+| --- | --- | --- |
+| `wait.webm` · `reveal.webm` | 533 · 653 KB | 크롬 · 엣지(VP9 알파) |
+| `wait.hevc.mp4` · `reveal.hevc.mp4` | 983 · 631 KB | WebKit — 사파리 · iPad · iPhone 의 모든 브라우저(HEVC 알파 · hvc1) |
+| `poster.webp` | 161 KB | 기다림 첫 프레임 — 영상 받기 전 · 동작 줄이기 · 영상을 못 틀 때 |
+
+- 형식은 엔진으로 고른다(`cloudvideo.pickVideoKind`) — WebKit 은 WebM 알파를, 크롬은 HEVC 알파를 버린다.
+- 원본: 1920×1080 · 30 fps RGBA PNG(기다림 72 · 걷힘 24 장 · 기다림 첫 = 끝 = 걷힘 첫 프레임). 다시 만드는 법은 `scripts/cloud-video.sh`.
+- 저전력 모드 · 형식을 못 읽음 → 첫 장면 그림이 커지며 사라지는 대체 길(`data-fallback`).
+- 동작 줄이기 → 영상(크게 확대되며 날아감)을 쓰지 않고 구름 조각 덮개(`CloudCover`)의 줄인 펴짐으로 넘긴다. 그 갈래에서만 따로 불러온다(`lazy`) — 영상만 쓰는 앱이면 보통 사용자는 PNG 구름을 받지 않는다(시연 페이지는 두 방식을 다 불러 Vite 가 「INEFFECTIVE_DYNAMIC_IMPORT」 경고를 낸다).

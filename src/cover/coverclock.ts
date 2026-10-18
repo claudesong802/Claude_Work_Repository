@@ -1,7 +1,12 @@
 // 덮개의 시간 · 갈래 판정. DOM 을 만지지 않는다 — 시각(now)과 저장소(storage)는 밖에서 받는다.
 // 화면(CloudCover.tsx)은 이 판정이 말하는 장면을 그리고, waitMs 뒤에 다시 묻기만 한다.
 
-/** full = 첫 접속(그리기 → 펴지기) · short = 같은 창 두 번째(펴지기만 짧게) · reduced = 동작 줄이기(구름 없이 사라지기만) */
+/**
+ * full = 첫 접속(그리기 → 펴지기) · short = 같은 창 두 번째(펴지기만 짧게) ·
+ * reduced = 동작 줄이기 — 구름 첫 장면은 보이되 흐름 없이, 준비되면 가운데부터 조금만 벌어지며 옅어진다(줄인 펴짐)
+ *   (B+ · 사용자 10-19 「권장하는 방향대로」 · 그 설정이 막으려는 것은 큰 확대 · 날아가는 움직임이지 그림이 아니다 —
+ *    B안(제자리에서 옅어지기만)은 컨셉의 「펴짐」 이 안 보여 B+ 로 바꿈)
+ */
 export type CoverMode = "full" | "short" | "reduced";
 
 /** draw = 그리기(로딩 중) · part = 펴지기 · gone = 다 사라짐(DOM 에서 뺌) */
@@ -22,7 +27,10 @@ export const MIN_SHOW_MS = 600;
 /** 첫 접속 펴지기 기본 길이 — 하늘 결(sky)마다 따로 줄 수 있다(cloudshape SKY_PART_MS) */
 export const PART_MS = 600;
 export const SHORT_PART_MS = 300;
-export const REDUCED_PART_MS = 200;
+/** 동작 줄이기: 구름 첫 장면을 이만큼은 보인다(빨리 떠도 구름이 보이고 사라지게) */
+export const REDUCED_MIN_SHOW_MS = 400;
+/** 동작 줄이기: 줄인 펴짐 길이 — 첫 접속(0.5 ~ 0.8 초)과 비슷하게 · 움직임 크기만 작게(cloudcover.css cloudcover-part-soft) */
+export const REDUCED_PART_MS = 600;
 export const DEFAULT_CAP_MS = 15000;
 export const ART_WAIT_MS = 1200;
 
@@ -41,7 +49,7 @@ export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS, partM
     case "short":
       return { minShowMs: 0, artWaitMs: 0, partMs: SHORT_PART_MS, capMs };
     case "reduced":
-      return { minShowMs: 0, artWaitMs: 0, partMs: REDUCED_PART_MS, capMs };
+      return { minShowMs: REDUCED_MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs: REDUCED_PART_MS, capMs };
   }
 }
 

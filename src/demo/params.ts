@@ -23,6 +23,10 @@ export interface DemoParams {
   capMs: number | undefined;
   /** 지도 없이 시계로만 준비 신호(시험용) */
   noMap: boolean;
+  /** 덮개 그리는 방식 — png(구름 PNG 조각 · 기본) · video(투명 영상 두 토막) */
+  engine: "png" | "video";
+  /** 영상 덮개: 기다림 → 걷힘을 언제 잇나 — loop(한 바퀴 끝 · 기본) · now(곧바로) */
+  switchAt: "loop" | "now";
 }
 
 function num(q: URLSearchParams, key: string): number | undefined {
@@ -50,5 +54,7 @@ export function readParams(search: string): DemoParams {
     debug: on(q, "debug"),
     capMs: num(q, "cap"),
     noMap: on(q, "nomap"),
+    engine: q.get("engine") === "video" ? "video" : "png",
+    switchAt: q.get("switch") === "now" ? "now" : "loop",
   };
 }
