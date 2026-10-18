@@ -53,6 +53,7 @@ export function Demo({ params }: { params: DemoParams }) {
           note={warm ? "서버 준비 중" : null}
           capMs={params.capMs}
           design={params.design}
+          sky={params.sky}
           reducedMotion={params.reduced ? true : undefined}
           onGone={() => setCoverGone(true)}
           onPartStart={setApproachMs}

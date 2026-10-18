@@ -1,14 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { ART, buildClouds, CENTER_FIRST_LAG, centerDistance, type CoverDesign } from "../../src/cover/cloudshape";
+import {
+  ART,
+  buildClouds,
+  CENTER_FIRST_LAG,
+  centerDistance,
+  SKY_PART_MS,
+  type CoverDesign,
+  type Sky,
+} from "../../src/cover/cloudshape";
 
 const DESIGNS: CoverDesign[] = ["a", "b", "c"];
+const SKIES: Sky[] = ["dense", "mid", "sparse"];
+/** 하늘 결마다 구름 수 범위 */
+const COUNT: Record<Sky, [number, number]> = { dense: [18, 22], mid: [14, 17], sparse: [10, 15] };
 
-describe("덮기 배치", () => {
-  const clouds = buildClouds("a");
+it("하늘 결이 촘촘할수록 펴지기가 짧다(영상 0.5 초 ~ 0.8 초)", () => {
+  expect(SKY_PART_MS.dense).toBeLessThan(SKY_PART_MS.mid);
+  expect(SKY_PART_MS.mid).toBeLessThan(SKY_PART_MS.sparse);
+  expect(SKY_PART_MS.dense).toBeGreaterThanOrEqual(400);
+  expect(SKY_PART_MS.sparse).toBeLessThanOrEqual(900);
+});
 
-  it("구름 10 ~ 15 번 · 여섯 그림을 모두 쓴다 · 그림 비율은 원본 그대로", () => {
-    expect(clouds.length).toBeGreaterThanOrEqual(10);
-    expect(clouds.length).toBeLessThanOrEqual(15);
+describe.each(SKIES)("하늘 %s: 덮기 배치", (sky) => {
+  const clouds = buildClouds("a", sky);
+
+  it("구름 수 · 여섯 그림을 모두 쓴다 · 그림 비율은 원본 그대로", () => {
+    expect(clouds.length).toBeGreaterThanOrEqual(COUNT[sky][0]);
+    expect(clouds.length).toBeLessThanOrEqual(COUNT[sky][1]);
     expect(new Set(clouds.map((c) => c.art)).size).toBe(Object.keys(ART).length);
     for (const c of clouds) expect(c.ratio).toBeCloseTo(ART[c.art].h / ART[c.art].w, 6);
   });
@@ -43,23 +61,23 @@ describe("덮기 배치", () => {
   });
 
   it("시안이 달라도 배치 · 흐름은 같고 펴지는 꼴만 다르다", () => {
-    const c = buildClouds("c");
+    const c = buildClouds("c", sky);
     expect(c.map(({ part: _p, ...rest }) => rest)).toEqual(clouds.map(({ part: _p, ...rest }) => rest));
     expect(c.map((x) => x.part)).not.toEqual(clouds.map((x) => x.part));
   });
 });
 
-describe("펴지기", () => {
+describe.each(SKIES)("하늘 %s: 펴지기", (sky) => {
   for (const design of ["a", "b"] as const) {
     it(`시안 ${design}: 가운데 구름부터 먼저(가운데에서 멀수록 늦게 출발)`, () => {
-      const clouds = buildClouds(design);
+      const clouds = buildClouds(design, sky);
       const byDist = [...clouds].sort((p, q) => centerDistance(p.x, p.y) - centerDistance(q.x, q.y));
       for (let i = 1; i < byDist.length; i++) expect(byDist[i].part.lag).toBeGreaterThanOrEqual(byDist[i - 1].part.lag);
       expect(Math.max(...clouds.map((c) => c.part.lag))).toBeLessThanOrEqual(CENTER_FIRST_LAG);
     });
 
     it(`시안 ${design}: 구름이 약 2 배로 커지며 화면 중심에서 바깥으로 밀려난다 · 가운데 구름은 커지며 사라짐`, () => {
-      for (const c of buildClouds(design)) {
+      for (const c of buildClouds(design, sky)) {
         expect(c.part.scale).toBeGreaterThanOrEqual(2);
         if (c.part.opacity === 0) {
           expect(centerDistance(c.x, c.y)).toBeLessThan(0.12);
@@ -70,16 +88,16 @@ describe("펴지기", () => {
         // 옮겨 가는 방향이 가운데 → 구름 자리 방향과 같다
         expect(dx * (c.x - 50) + dy * (c.y - 50)).toBeGreaterThan(0);
       }
-      expect(buildClouds(design).some((c) => c.part.opacity === 0)).toBe(true);
+      expect(buildClouds(design, sky).some((c) => c.part.opacity === 0)).toBe(true);
     });
   }
 
   it("시안 c: 가로 띠마다 좌우로 엇갈린다", () => {
-    for (const c of buildClouds("c")) expect(c.part.dx.startsWith("-")).toBe(c.row % 2 === 0);
+    for (const c of buildClouds("c", sky)) expect(c.part.dx.startsWith("-")).toBe(c.row % 2 === 0);
   });
 
   it("모든 시안: 늦게 출발하는 몫은 펴지기 길이 안", () => {
-    for (const d of DESIGNS) for (const c of buildClouds(d)) {
+    for (const d of DESIGNS) for (const c of buildClouds(d, sky)) {
       expect(c.part.lag).toBeGreaterThanOrEqual(0);
       expect(c.part.lag).toBeLessThan(0.5);
     }

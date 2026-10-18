@@ -65,10 +65,14 @@
   -webkit-user-drag: none;
 }
 
-/* 펴지기: 가운데 구름부터 · 가속(ease-in) · 커지며 바깥으로 — 늦게 출발한 조각도 같은 때에 끝난다 */
+/* 펴지기: 가운데 구름부터 · 가속(ease-in · 절반 시점에 35 % 진행) · 커지며 바깥으로 — 늦게 출발한 조각도 같은 때에 끝난다 */
 .cloudcover[data-phase="part"] .cloudcover-piece {
   animation: cloudcover-part calc(var(--cloudcover-part-ms) * (1 - var(--lag)))
-    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.5, 0, 0.75, 0.3) forwards;
+    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.32, 0, 0.6, 0.5) forwards;
+}
+/* 화면 가운데 구름: 앞 45 % 안에 커지며 사라져 가운데 구멍이 먼저 열린다(영상의 0.8 초) */
+.cloudcover[data-phase="part"] .cloudcover-piece[data-burst] {
+  animation: cloudcover-burst calc(var(--cloudcover-part-ms) * 0.45) ease-out forwards;
 }
 
 /* 바탕은 펴지기 앞쪽에 사라져 가운데 구멍으로 지도가 먼저 보인다 */
@@ -120,6 +124,12 @@
   }
   to {
     transform: translate3d(var(--drift-x), var(--drift-y), 0) scale(1.03);
+  }
+}
+@keyframes cloudcover-burst {
+  to {
+    transform: scale(var(--s));
+    opacity: 0;
   }
 }
 @keyframes cloudcover-part {

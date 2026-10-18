@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import "./cloudcover.css";
 import { ART_URL, artReady } from "./cloudart";
-import { buildClouds, type CoverDesign } from "./cloudshape";
+import { buildClouds, SKY_PART_MS, type CoverDesign, type Sky } from "./cloudshape";
 import {
   decideCover,
   markSeen,
@@ -26,8 +26,10 @@ export interface CloudCoverProps {
   onGone?: () => void;
   /** 펴지기가 시작될 때 한 번(펴지기 길이 ms) — 밑의 지도를 같이 움직이고 싶을 때(시안 b) */
   onPartStart?: (partMs: number) => void;
-  /** 시안 고르기(시안 단계에서만 · 고른 뒤 뺀다) */
+  /** 시안 고르기(시안 단계에서만 · 고른 뒤 뺀다) — 펴지는 꼴 */
   design?: CoverDesign;
+  /** 시안 고르기(시안 단계에서만 · 고른 뒤 뺀다) — 하늘 결(구름 수 · 크기 · 펴지기 길이) */
+  sky?: Sky;
   /** 동작 줄이기를 밖에서 정함 — 없으면 prefers-reduced-motion 을 따른다 */
   reducedMotion?: boolean;
 }
@@ -51,14 +53,15 @@ export function CloudCover({
   onGone,
   onPartStart,
   design = "a",
+  sky = "mid",
   reducedMotion,
 }: CloudCoverProps) {
   const [mountedAt] = useState(() => performance.now());
   const [mode] = useState(() =>
     pickMode({ reducedMotion: reducedMotion ?? prefersReducedMotion(), seenBefore: readSeen(session) }),
   );
-  const timing = useMemo(() => timingFor(mode, capMs), [mode, capMs]);
-  const clouds = useMemo(() => (mode === "reduced" ? [] : buildClouds(design)), [mode, design]);
+  const timing = useMemo(() => timingFor(mode, capMs, SKY_PART_MS[sky]), [mode, capMs, sky]);
+  const clouds = useMemo(() => (mode === "reduced" ? [] : buildClouds(design, sky)), [mode, design, sky]);
 
   // 구름을 띄우는 때: 그림이 다 받아져 해독된 때 — 늦어도 artWaitMs 뒤(그림 없이라도 시간은 간다).
   // 그 전에는 불투명한 흰 바탕만(지도가 먼저 비치지 않게). 두 번째 · 동작 줄이기는 기다리지 않는다.
@@ -126,6 +129,7 @@ export function CloudCover({
       data-phase={decision.phase}
       data-mode={mode}
       data-design={design}
+      data-sky={sky}
       data-reason={decision.reason ?? undefined}
       data-shown={shown ? "1" : undefined}
       role="progressbar"
@@ -156,7 +160,13 @@ export function CloudCover({
             };
             const artStyle: CSSVars = { "--rot": `${c.rot}deg`, "--flip": c.flip ? -1 : 1 };
             return (
-              <div key={c.id} className="cloudcover-piece" style={pieceStyle} data-art={c.art}>
+              <div
+                key={c.id}
+                className="cloudcover-piece"
+                style={pieceStyle}
+                data-art={c.art}
+                data-burst={c.part.opacity === 0 ? "1" : undefined}
+              >
                 <div className="cloudcover-drift" style={driftStyle}>
                   <img className="cloudcover-art" src={ART_URL[c.art]} alt="" draggable={false} style={artStyle} />
                 </div>

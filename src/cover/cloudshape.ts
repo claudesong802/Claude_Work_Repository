@@ -4,6 +4,13 @@
 
 export type CoverDesign = "a" | "b" | "c";
 
+/**
+ * 하늘 결(시안 단계에서 견줌 · 고른 뒤 하나만 남긴다):
+ * dense = 영상처럼 작은 구름 20 장 · 펴지기 0.5 초 / mid = 16 장 중간 크기 · 0.6 초(기본) / sparse = 큰 구름 14 장 · 0.8 초
+ */
+export type Sky = "dense" | "mid" | "sparse";
+export const SKY_PART_MS: Record<Sky, number> = { dense: 500, mid: 600, sparse: 800 };
+
 /** 그림 이름과 크기(px · 투명 여백을 자른 뒤) — scripts/cloud-assets.py 가 낸 값 */
 export const ART = {
   original: { w: 1600, h: 567 },
@@ -41,7 +48,9 @@ export interface Cloud {
  * 빈틈을 재며 찾은 값이다(기다림 흐름의 양 끝에서도) — 손으로 고치면 그 도구를 다시 돌리고 e2e 「빈틈」 으로 확인한다.
  * 같은 그림은 멀리 두고 뒤집기 · 돌리기를 바꿔 나란히 반복돼 보이지 않게 한다.
  */
-const LAYOUT: { art: ArtName; x: number; y: number; w: number; flip?: boolean; rot?: number; row: number }[] = [
+type Spot = { art: ArtName; x: number; y: number; w: number; flip?: boolean; rot?: number; row: number };
+
+const SPARSE: Spot[] = [
   { art: "wide", x: 89, y: 1, w: 50, flip: true, rot: 5, row: 0 },
   { art: "original", x: 30, y: 7, w: 68, rot: -2, row: 0 },
   { art: "billowy", x: 72, y: 11, w: 72, rot: 4, row: 1 },
@@ -94,8 +103,55 @@ function partFor(design: CoverDesign, x: number, y: number, row: number): Cloud[
   }
 }
 
-export function buildClouds(design: CoverDesign): Cloud[] {
-  return LAYOUT.map((c, order) => {
+const MID: Spot[] = [
+  { art: "original", x: 80, y: 6, w: 57, flip: true, rot: 5, row: 0 },
+  { art: "original", x: 8, y: 6, w: 56, flip: true, rot: -2, row: 0 },
+  { art: "billowy", x: 45, y: 13, w: 56, rot: 2, row: 1 },
+  { art: "wide", x: 10, y: 16, w: 56, rot: -4, row: 1 },
+  { art: "diagonal", x: 106, y: 18, w: 56, flip: true, rot: -2, row: 1 },
+  { art: "wispy", x: 82, y: 25, w: 47, rot: 5, row: 1 },
+  { art: "curled", x: 3, y: 47, w: 58, flip: true, rot: 5, row: 2 },
+  { art: "curled", x: 78, y: 47, w: 56, flip: true, rot: -4, row: 2 },
+  { art: "original", x: 8, y: 47, w: 56, rot: 5, row: 2 },
+  { art: "billowy", x: 74, y: 60, w: 58, rot: 4, row: 3 },
+  { art: "curled", x: 18, y: 75, w: 57, row: 4 },
+  { art: "billowy", x: 32, y: 81, w: 58, row: 4 },
+  { art: "diagonal", x: 78, y: 85, w: 58, rot: 3, row: 4 },
+  { art: "wispy", x: 71, y: 88, w: 52, rot: 1, row: 4 },
+  { art: "wide", x: 88, y: 96, w: 53, flip: true, rot: 1, row: 5 },
+  // 가운데 — 맨 앞에 두어 펴질 때 가장 먼저 커지며 사라진다(가운데가 열림)
+  { art: "billowy", x: 47, y: 44, w: 46, flip: true, rot: -5, row: 2 },
+];
+
+// 잠정 — scripts/cloud-layout.py 를 22 장으로 다시 돌린 값으로 바꾼다
+const DENSE: Spot[] = [
+  { art: "billowy", x: 40, y: 5, w: 45, flip: true, rot: 1, row: 0 },
+  { art: "diagonal", x: 110, y: 7, w: 44, flip: true, rot: -4, row: 0 },
+  { art: "billowy", x: 74, y: 9, w: 45, flip: true, rot: -3, row: 0 },
+  { art: "curled", x: 2, y: 18, w: 45, flip: true, rot: -1, row: 1 },
+  { art: "original", x: 15, y: 24, w: 45, rot: 5, row: 1 },
+  { art: "wispy", x: 101, y: 25, w: 43, rot: -2, row: 1 },
+  { art: "original", x: 57, y: 31, w: 45, rot: 1, row: 2 },
+  { art: "wispy", x: 28, y: 35, w: 45, rot: -1, row: 2 },
+  { art: "wispy", x: 63, y: 36, w: 44, flip: true, rot: 4, row: 2 },
+  { art: "billowy", x: 89, y: 44, w: 45, flip: true, rot: -2, row: 2 },
+  { art: "diagonal", x: 10, y: 50, w: 44, rot: -1, row: 3 },
+  { art: "curled", x: -2, y: 54, w: 45, flip: true, rot: -2, row: 3 },
+  { art: "curled", x: 44, y: 56, w: 45, rot: -2, row: 3 },
+  { art: "original", x: 64, y: 66, w: 45, flip: true, rot: 5, row: 3 },
+  { art: "wide", x: 89, y: 77, w: 45, rot: 3, row: 4 },
+  { art: "curled", x: 94, y: 81, w: 45, rot: -1, row: 4 },
+  { art: "billowy", x: 20, y: 82, w: 45, rot: -4, row: 4 },
+  { art: "billowy", x: 58, y: 85, w: 45, flip: true, rot: 2, row: 4 },
+  { art: "diagonal", x: 105, y: 87, w: 45, flip: true, rot: -3, row: 4 },
+  // 가운데 — 맨 앞에 두어 펴질 때 가장 먼저 커지며 사라진다(가운데가 열림)
+  { art: "billowy", x: 55, y: 48, w: 36, rot: -1, row: 2 },
+];
+
+const LAYOUTS: Record<Sky, Spot[]> = { dense: DENSE, mid: MID, sparse: SPARSE };
+
+export function buildClouds(design: CoverDesign, sky: Sky = "mid"): Cloud[] {
+  return LAYOUTS[sky].map((c, order) => {
     const art = ART[c.art];
     return {
       id: order,
@@ -118,6 +174,10 @@ export function buildClouds(design: CoverDesign): Cloud[] {
       },
     };
   });
+}
+
+export function isSky(v: unknown): v is Sky {
+  return v === "dense" || v === "mid" || v === "sparse";
 }
 
 export function isDesign(v: unknown): v is CoverDesign {

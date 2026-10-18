@@ -19,7 +19,8 @@ export interface CoverTiming {
 }
 
 export const MIN_SHOW_MS = 600;
-export const PART_MS = 800;
+/** 첫 접속 펴지기 기본 길이 — 하늘 결(sky)마다 따로 줄 수 있다(cloudshape SKY_PART_MS) */
+export const PART_MS = 600;
 export const SHORT_PART_MS = 300;
 export const REDUCED_PART_MS = 200;
 export const DEFAULT_CAP_MS = 15000;
@@ -33,10 +34,10 @@ export function pickMode(opts: { reducedMotion: boolean; seenBefore: boolean }):
   return opts.seenBefore ? "short" : "full";
 }
 
-export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS): CoverTiming {
+export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS, partMs: number = PART_MS): CoverTiming {
   switch (mode) {
     case "full":
-      return { minShowMs: MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs: PART_MS, capMs };
+      return { minShowMs: MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs, capMs };
     case "short":
       return { minShowMs: 0, artWaitMs: 0, partMs: SHORT_PART_MS, capMs };
     case "reduced":

@@ -4,8 +4,10 @@
 데스크톱 · 넓은 데스크톱에서 「구름으로 안 덮인 화소」 가 0 이 되게 담금질(simulated annealing)로 찾고,
 src/cover/cloudshape.ts 의 LAYOUT 에 붙일 줄을 찍는다. 기다림 흐름의 양 끝(옮겨 간 자리)에서도 잰다.
 
-돌리는 법: python3 scripts/cloud-layout.py [반복 수]   (Pillow · numpy 필요)
+돌리는 법: python3 scripts/cloud-layout.py --count 16 --w-min 32 --w-max 58 --center-w-max 46 --iters 8000
+          (Pillow · numpy 필요 · 하늘 결마다 값은 docs/DESIGN.md 의 표)
 """
+import argparse
 import math
 import random
 import sys
@@ -21,7 +23,7 @@ VIEWPORTS = [(768, 1024), (1024, 768), (390, 844), (844, 390), (1920, 1080), (25
 LONG = 160  # 잴 때 화면 긴 변(px) — 작게 줄여 빨리
 COVER_ALPHA = 128  # 이 알파부터 덮였다고 본다
 # 구름 크기(vmax) — 본보기처럼 중간 크기 구름이 겹겹이(화면만 한 구름 한 장으로 덮지 않게)
-W_MIN, W_MAX, CENTER_W_MAX = 40, 72, 56
+W_MIN, W_MAX, CENTER_W_MAX = 40, 72, 56  # main() 이 인자로 바꾼다
 
 masks: dict[tuple[str, int, bool], Image.Image] = {}
 
@@ -99,7 +101,8 @@ def score(layout: list[dict]) -> tuple[float, float]:
             total += g
     size = sum(c["w"] ** 2 for c in layout) / 100  # 큰 구름일수록 레이어 메모리가 넓이로 는다
     counts = {a: sum(1 for c in layout if c["art"] == a) for a in ARTS}
-    uneven = sum(max(0, 2 - n) + max(0, n - 3) for n in counts.values())  # 그림마다 2 ~ 3 번
+    lo = len(layout) // len(ARTS)
+    uneven = sum(max(0, lo - n) + max(0, n - (lo + 1)) for n in counts.values())  # 그림마다 고루
     return total * 50 + worst * 400 + size * 0.006 + repeat_penalty(layout) * 5 + uneven * 5, worst
 
 
@@ -119,7 +122,7 @@ def start(n: int, rnd: random.Random) -> list[dict]:
                 "center": False,
             }
         )
-    out.append({"art": "billowy", "x": 50, "y": 52, "w": 50, "rot": -2, "flip": False, "center": True})
+    out.append({"art": "billowy", "x": 50, "y": 52, "w": CENTER_W_MAX, "rot": -2, "flip": False, "center": True})
     return out
 
 
@@ -146,9 +149,19 @@ def tweak(layout: list[dict], rnd: random.Random, t: float) -> list[dict]:
 
 
 def main() -> None:
-    iters = int(sys.argv[1]) if len(sys.argv) > 1 else 6000
-    rnd = random.Random(7)
-    cur = start(14, rnd)
+    global W_MIN, W_MAX, CENTER_W_MAX
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--count", type=int, default=14)
+    ap.add_argument("--w-min", type=float, default=W_MIN)
+    ap.add_argument("--w-max", type=float, default=W_MAX)
+    ap.add_argument("--center-w-max", type=float, default=CENTER_W_MAX)
+    ap.add_argument("--iters", type=int, default=6000)
+    ap.add_argument("--seed", type=int, default=7)
+    args = ap.parse_args()
+    W_MIN, W_MAX, CENTER_W_MAX = args.w_min, args.w_max, args.center_w_max
+    iters = args.iters
+    rnd = random.Random(args.seed)
+    cur = start(args.count, rnd)
     cur_s, cur_w = score(cur)
     best, best_s, best_w = cur, cur_s, cur_w
     for i in range(iters):
@@ -166,7 +179,7 @@ def main() -> None:
     # 겹침 차례: 위에서 아래로, 가운데 구름은 맨 뒤(맨 앞에 그림)
     rest = sorted((c for c in best if not c["center"]), key=lambda c: c["y"])
     rows = {round(c["y"] / 100 * 5) for c in rest}
-    print(f"// 빈틈 최대 {best_w * 100:.3f}% (잴 때 긴 변 {LONG}px) · 띠 {len(rows)}")
+    print(f"// 빈틈 최대 {best_w * 100:.3f}% (잴 때 긴 변 {LONG}px) · 띠 {len(rows)} · 같은 그림 규칙 어김 {repeat_penalty(best):.0f}")
     for c in rest + [c for c in best if c["center"]]:
         flip = ", flip: true" if c["flip"] else ""
         rot = f", rot: {c['rot']}" if c["rot"] else ""

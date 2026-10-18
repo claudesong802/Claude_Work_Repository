@@ -76,25 +76,28 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   }, [ready]);
 
   const base = new URLSearchParams(window.location.search);
-  const link = (design: string) => {
+  const link = (key: "design" | "sky", value: string) => {
     const q = new URLSearchParams(base);
-    q.set("design", design);
+    q.set(key, value);
     q.set("fresh", "1");
     return `?${q.toString()}`;
   };
 
   return (
     <div className="demo-debug" aria-hidden="true">
-      {`시안 ${params.design} · devicePixelRatio ${window.devicePixelRatio}\n`}
+      {`시안 ${params.design} · 하늘 ${params.sky} · devicePixelRatio ${window.devicePixelRatio}\n`}
       {`지도 idle ${ms(marks.idleAt)} · 준비 ${ms(marks.readyAt)} · 펴지기 ${ms(marks.partAt)} → ${ms(marks.goneAt)} ms\n`}
       {`펴지기 중 프레임 ${marks.partFrames} · 가장 긴 간격 ${ms(marks.maxGapPart)} ms · ${SLOW_FRAME_MS} ms 넘은 것 ${marks.slowFramesPart}\n`}
       {`(페이지 전체 가장 긴 간격 ${ms(marks.maxGap)} ms)\n`}
       <span className="demo-debug-note">
         {"프레임 간격은 메인 스레드 기준 — transform · opacity 펴지기는 합성 단계라\n숫자가 나빠도 눈엔 부드러울 수 있음 · 판정은 눈이 먼저\n"}
       </span>
-      <a href={link("a")}>a</a>
-      <a href={link("b")}>b</a>
-      <a href={link("c")}>c</a>
+      <a href={link("design", "a")}>a</a>
+      <a href={link("design", "b")}>b</a>
+      <a href={link("design", "c")}>c</a>
+      <a href={link("sky", "dense")}>가</a>
+      <a href={link("sky", "mid")}>다</a>
+      <a href={link("sky", "sparse")}>나</a>
       <a href={window.location.search}>새로고침</a>
     </div>
   );
