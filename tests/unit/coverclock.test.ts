@@ -4,6 +4,7 @@ import {
   DEFAULT_CAP_MS,
   MIN_SHOW_MS,
   PART_MS,
+  REDUCED_MIN_SHOW_MS,
   REDUCED_PART_MS,
   SEEN_KEY,
   SHORT_PART_MS,
@@ -85,10 +86,12 @@ describe("decideCover", () => {
     expect(log[2].at - log[1].at).toBeCloseTo(SHORT_PART_MS, 0);
   });
 
-  it("동작 줄이기: 0.2 초 사라지기만", () => {
+  it("동작 줄이기: 구름 첫 장면을 최소 보임만큼 보인 뒤 0.6 초 줄인 펴짐(B+ · 사용자 10-19)", () => {
     const log = run(timingFor("reduced"), 10);
-    vi.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(3000);
+    expect(log[1].at).toBeCloseTo(REDUCED_MIN_SHOW_MS, 0);
     expect(log[2].at - log[1].at).toBeCloseTo(REDUCED_PART_MS, 0);
+    expect(REDUCED_PART_MS).toBe(600);
   });
 });
 
@@ -113,11 +116,16 @@ describe("구름 그림을 기다리는 동안", () => {
     expect(at(DEFAULT_CAP_MS, null, null)).toMatchObject({ phase: "part", reason: "cap", partAt: DEFAULT_CAP_MS });
   });
 
-  it("두 번째 · 동작 줄이기는 그림을 기다리지 않는다", () => {
-    for (const mode of ["short", "reduced"] as const) {
-      expect(timingFor(mode).artWaitMs).toBe(0);
-      expect(decideCover({ mountedAt: 0, artAt: null, readyAt: 10, now: 10, timing: timingFor(mode) }).phase).toBe("part");
-    }
+  it("두 번째는 그림을 기다리지 않는다", () => {
+    expect(timingFor("short").artWaitMs).toBe(0);
+    expect(decideCover({ mountedAt: 0, artAt: null, readyAt: 10, now: 10, timing: timingFor("short") }).phase).toBe("part");
+  });
+
+  it("동작 줄이기도 구름을 보이므로 그림을 기다린다(첫 접속과 같은 상한)", () => {
+    const t = timingFor("reduced");
+    expect(t.artWaitMs).toBe(ART_WAIT_MS);
+    expect(decideCover({ mountedAt: 0, artAt: null, readyAt: 10, now: 10, timing: t }).phase).toBe("draw");
+    expect(decideCover({ mountedAt: 0, artAt: 100, readyAt: 10, now: 100 + REDUCED_MIN_SHOW_MS, timing: t }).phase).toBe("part");
   });
 });
 

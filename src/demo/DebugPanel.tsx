@@ -6,6 +6,9 @@ import type { DemoParams } from "./params";
 interface Marks {
   /** 덮개 갈래(full · short · reduced) — 처음 본 값 */
   mode: string | null;
+  /** 영상 덮개: 형식(hevc · webm) · 영상 대신 그림으로 걷었나 */
+  kind: string | null;
+  fallback: boolean;
   /** 지도 idle 시각(nomap 이면 null) */
   idleAt: number | null;
   /** 덮개에 ready 를 켠 시각(idle · 서버 준비 · delay 뒤) */
@@ -42,12 +45,14 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
     const watch = () => {
       const el = document.querySelector<HTMLElement>(".cloudcover");
       if (el && m.mode === null) m.mode = el.dataset.mode ?? null;
+      if (el && m.kind === null) m.kind = el.dataset.kind ?? null;
+      if (el?.dataset.fallback) m.fallback = true;
       const phase = el?.dataset.phase ?? "gone";
       if (phase !== "draw" && m.partAt === null) m.partAt = performance.now();
       if (phase === "gone" && m.partAt !== null && m.goneAt === null) m.goneAt = performance.now();
     };
     const mo = new MutationObserver(watch);
-    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase"] });
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase", "data-fallback"] });
     watch();
     // 프레임 간격: 한 프레임 구간이 펴지기 구간과 겹치면 펴지기 중 프레임으로 센다
     let last = performance.now();
@@ -81,7 +86,7 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   }, [ready]);
 
   const base = new URLSearchParams(window.location.search);
-  const link = (key: "design" | "sky" | "motion", value: string) => {
+  const link = (key: "design" | "sky" | "motion" | "engine" | "switch", value: string) => {
     const q = new URLSearchParams(base);
     q.set(key, value);
     q.set("fresh", "1");
@@ -90,7 +95,9 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
 
   return (
     <div className="demo-debug" aria-hidden="true">
-      {`시안 ${params.design} · 하늘 ${params.sky} · devicePixelRatio ${window.devicePixelRatio}\n`}
+      {params.engine === "video"
+        ? `영상 덮개 · 형식 ${marks.kind ?? "—"} · 잇기 ${params.switchAt === "loop" ? "한 바퀴 끝" : "곧바로"}${marks.fallback ? " · 영상 못 틀어 그림으로 걷음" : ""} · devicePixelRatio ${window.devicePixelRatio}\n`
+        : `시안 ${params.design} · 하늘 ${params.sky} · devicePixelRatio ${window.devicePixelRatio}\n`}
       {`갈래 ${MODE_LABEL[marks.mode ?? ""] ?? "—"} · 기기 동작 줄이기 ${reducedSetting() ? "켜짐" : "꺼짐"}\n`}
       {`지도 idle ${ms(marks.idleAt)} · 준비 ${ms(marks.readyAt)} · 펴지기 ${ms(marks.partAt)} → ${ms(marks.goneAt)} ms\n`}
       {`펴지기 중 프레임 ${marks.partFrames} · 가장 긴 간격 ${ms(marks.maxGapPart)} ms · ${SLOW_FRAME_MS} ms 넘은 것 ${marks.slowFramesPart}\n`}
@@ -105,6 +112,10 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       <a href={link("sky", "mid")}>다</a>
       <a href={link("sky", "sparse")}>나</a>
       <a href={link("motion", "full")}>동작 강제</a>
+      <a href={link("engine", "png")}>PNG</a>
+      <a href={link("engine", "video")}>영상</a>
+      <a href={link("switch", "loop")}>바퀴 끝</a>
+      <a href={link("switch", "now")}>곧바로</a>
       <a href={window.location.search}>새로고침</a>
     </div>
   );
@@ -121,5 +132,5 @@ function reducedSetting(): boolean {
 }
 
 function blank(): Marks {
-  return { mode: null, idleAt: null, readyAt: null, partAt: null, goneAt: null, maxGap: 0, partFrames: 0, maxGapPart: 0, slowFramesPart: 0 };
+  return { mode: null, kind: null, fallback: false, idleAt: null, readyAt: null, partAt: null, goneAt: null, maxGap: 0, partFrames: 0, maxGapPart: 0, slowFramesPart: 0 };
 }

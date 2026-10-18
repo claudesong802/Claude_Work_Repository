@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { measureSpread } from "./spread";
 
 // 덮개 갈래 시험 — nomap=1 이면 지도 없이 시계로만 준비 신호를 낸다(망 · WebGL 에 기대지 않게).
 const cover = (page: Page) => page.locator(".cloudcover");
+/** 동작 줄이기 펴지기 길이(coverclock.REDUCED_PART_MS 와 같은 값) */
+const REDUCED_PART = 600;
 const phase = (page: Page) => cover(page).getAttribute("data-phase");
 
 /** 펴지기 동안 매 프레임 document.getAnimations() 의 키프레임 속성을 모은다 */
@@ -28,6 +31,7 @@ function partAnimationProps(page: Page) {
       }),
   );
 }
+
 
 test("준비 전에는 덮개가 남는다", async ({ page }) => {
   await page.goto("/?nomap=1&hang=1&fresh=1");
@@ -75,18 +79,38 @@ test("같은 창 두 번째(새로고침)는 펴지기만 짧게", async ({ page
   expect(Date.now() - t0).toBeLessThan(1500);
 });
 
-test("동작 줄이기(주소 칸)면 구름 없이 사라지기만", async ({ page }) => {
+// 동작 줄이기(B+ · 사용자 10-19 「권장하는 방향대로」): 구름은 보이되 흐름 없이, 준비되면 가운데부터 조금만 벌어지며 옅어진다 —
+// 큰 확대 · 날아가는 움직임은 없다(그 설정이 막으려는 것). 양쪽을 잰다: 동작 줄이기는 작게 · 첫 접속은 크게
+test("동작 줄이기(주소 칸)면 구름은 보이고, 펴질 때 조금만 벌어지며 옅어진다(transform · opacity 뿐)", async ({ page }) => {
   await page.goto("/?nomap=1&reduced=1&fresh=1&delay=800");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
-  await expect(page.locator(".cloudcover-piece")).toHaveCount(0);
+  await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
+  const [{ props, samples }, spread] = await Promise.all([partAnimationProps(page), measureSpread(page, REDUCED_PART)]);
+  expect(samples).toBeGreaterThan(0);
+  for (const p of props) expect(["transform", "opacity"]).toContain(p);
+  expect(spread.pieces).toBeGreaterThan(0);
+  expect(spread.shift).toBeGreaterThan(0.005); // 벌어지기는 한다(옅어지기만이 아님)
+  expect(spread.shift).toBeLessThan(0.1); // 화면 긴 변의 10 % 안쪽
+  expect(spread.grow).toBeLessThan(1.1); // 크게 확대하지 않는다
   await expect(cover(page)).toHaveCount(0, { timeout: 3000 });
 });
 
-test("동작 줄이기(prefers-reduced-motion)도 같은 갈래", async ({ page }) => {
+test("첫 접속(견줌)은 크게 벌어진다 — 위 「작게」 가 재는 값이 실제로 가르는지", async ({ page }) => {
+  await page.goto("/?nomap=1&fresh=1&delay=800&design=a&motion=full");
+  await expect(cover(page)).toHaveAttribute("data-mode", "full");
+  const spread = await measureSpread(page, 600);
+  expect(Math.max(spread.shift, spread.grow - 1)).toBeGreaterThan(0.2);
+});
+
+test("동작 줄이기(prefers-reduced-motion)도 같은 갈래 · 기다리는 동안 구름이 흐르지 않는다", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?nomap=1&fresh=1&delay=800");
+  await page.goto("/?nomap=1&fresh=1&hang=1");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
-  await expect(page.locator(".cloudcover-piece")).toHaveCount(0);
+  await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
+  const running = await page.evaluate(() =>
+    document.getAnimations().filter((a) => (a.effect as KeyframeEffect | null)?.target instanceof Element && (a.effect as KeyframeEffect).target!.closest(".cloudcover-piece")).length,
+  );
+  expect(running).toBe(0);
 });
 
 test("기기가 동작 줄이기여도 motion=full 이면 첫 접속 모습(시연 확인용)", async ({ page }) => {

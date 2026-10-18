@@ -61,10 +61,11 @@ export function CloudCover({
     pickMode({ reducedMotion: reducedMotion ?? prefersReducedMotion(), seenBefore: readSeen(session) }),
   );
   const timing = useMemo(() => timingFor(mode, capMs, SKY_PART_MS[sky]), [mode, capMs, sky]);
-  const clouds = useMemo(() => (mode === "reduced" ? [] : buildClouds(design, sky)), [mode, design, sky]);
+  // 동작 줄이기도 구름은 보인다(B안) — 흐름 · 터짐은 CSS 가 끈다(data-mode="reduced")
+  const clouds = useMemo(() => buildClouds(design, sky), [design, sky]);
 
   // 구름을 띄우는 때: 그림이 다 받아져 해독된 때 — 늦어도 artWaitMs 뒤(그림 없이라도 시간은 간다).
-  // 그 전에는 불투명한 흰 바탕만(지도가 먼저 비치지 않게). 두 번째 · 동작 줄이기는 기다리지 않는다.
+  // 그 전에는 불투명한 흰 바탕만(지도가 먼저 비치지 않게). 두 번째는 기다리지 않는다.
   const [artAt, setArtAt] = useState<number | null>(() => (timing.artWaitMs === 0 ? mountedAt : null));
   useEffect(() => {
     if (artAt !== null) return;

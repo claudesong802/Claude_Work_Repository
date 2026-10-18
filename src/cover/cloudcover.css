@@ -81,13 +81,16 @@
   animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out forwards;
 }
 
-/* 동작 줄이기: 구름 없이 덮개 전체가 짧게 사라지기만 */
-.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-sheet,
-.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-note {
+/* 동작 줄이기(B+): 구름 첫 장면은 보이되 흐름 없이 — 준비되면 가운데 구름부터(같은 lag) 조금만 바깥으로 벌어지며 옅어진다.
+   이동은 첫 접속 펴짐의 6 %(--dx · --dy × 0.06) · 크기 1.05 까지 — 큰 확대 · 날아가는 움직임은 없다(e2e 「조금만 벌어지며」 가 잰다).
+   바탕은 첫 접속처럼 앞쪽에 걷혀 벌어진 틈으로 지도가 보인다. */
+.cloudcover[data-mode="reduced"] .cloudcover-drift {
   animation: none;
 }
-.cloudcover[data-mode="reduced"][data-phase="part"] {
-  animation: cloudcover-hide var(--cloudcover-part-ms) linear forwards;
+.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece,
+.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece[data-burst] {
+  animation: cloudcover-part-soft calc(var(--cloudcover-part-ms) * (1 - var(--lag) * 0.5))
+    calc(var(--cloudcover-part-ms) * var(--lag) * 0.5) ease-out forwards;
 }
 
 .cloudcover-note {
@@ -108,6 +111,41 @@
   color: var(--cloudcover-ink);
 }
 
+/* ── 영상 덮개(VideoCloudCover) — 바탕 · 첫 장면 그림 · 기다림 영상 · 걷힘 영상을 겹친다 ──
+   걷힘 영상이 실제로 돌기 시작하면(data-swapped) 밑의 셋을 한 번에 걷는다 — 걷힘 첫 프레임이 기다림 끝 프레임과 같아 이음매가 안 보인다.
+   영상을 못 틀면(data-fallback) 첫 장면 그림이 커지며 사라진다(transform · opacity 만). */
+.cloudcover-still,
+.cloudcover-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.cloudcover-still[data-on="0"],
+.cloudcover-video[data-on="0"] {
+  opacity: 0;
+}
+.cloudcover--video[data-phase="part"] .cloudcover-sheet {
+  animation: none; /* PNG 덮개의 「바탕 먼저 걷기」 를 끈다 — 영상 덮개는 걷힘 영상이 돌 때 걷는다 */
+}
+.cloudcover--video[data-swapped] .cloudcover-sheet,
+.cloudcover--video[data-swapped] .cloudcover-still,
+.cloudcover--video[data-swapped] .cloudcover-video[data-role="wait"] {
+  opacity: 0;
+}
+.cloudcover--video[data-fallback][data-phase="part"] {
+  animation: cloudcover-fallback var(--cloudcover-part-ms) ease-in forwards;
+}
+
+@keyframes cloudcover-fallback {
+  to {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+}
 @keyframes cloudcover-show {
   from {
     opacity: 0;
@@ -129,6 +167,12 @@
 @keyframes cloudcover-burst {
   to {
     transform: scale(var(--s));
+    opacity: 0;
+  }
+}
+@keyframes cloudcover-part-soft {
+  to {
+    transform: translate3d(calc(var(--dx) * 0.06), calc(var(--dy) * 0.06), 0) scale(1.05);
     opacity: 0;
   }
 }
