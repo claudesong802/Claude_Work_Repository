@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { measureSpread } from "./spread";
+import { blurShownAfter, measureSpread, watchBlurShown } from "./spread";
 
-// 영상 덮개(engine=video) 시험 — nomap=1 이면 지도 없이 시계로만 준비 신호를 낸다.
+// 영상 덮개 시험(시연 기본 덮개 · 사용자 10-19 영상 방식 선택) — nomap=1 이면 지도 없이 시계로만 준비 신호를 낸다.
 // 형식은 엔진으로 고른다: 크롬 = WebM(VP9 알파) · WebKit(사파리 · iPad) = HEVC 알파.
 // WebKit 이 HEVC 를 못 틀면(리눅스 CI 등) 첫 장면 그림이 커지며 사라지는 대체 길로 간다 — 그래도 덮개는 걷혀야 한다.
 const cover = (page: Page) => page.locator(".cloudcover");
@@ -44,8 +44,8 @@ test("영상 덮개: 엔진에 맞는 형식을 고르고, 기다림 → 걷힘 
   browserName,
 }) => {
   await recordPhases(page);
-  await page.goto("/?engine=video&nomap=1&fresh=1&delay=800");
-  await expect(cover(page)).toHaveAttribute("data-engine", "video");
+  await page.goto("/?nomap=1&fresh=1&delay=800");
+  await expect(cover(page)).toHaveClass(/cloudcover--video/);
   await expect(cover(page)).toHaveAttribute(
     "data-kind",
     browserName === "webkit" ? "hevc" : "webm",
@@ -81,10 +81,10 @@ test("영상 덮개 · 곧바로 잇기: 준비 신호 뒤 곧 걷히고, 바퀴
     return log.find((r) => r[1] === "part")![0] - drawAt;
   };
   const now = await partStart(
-    "/?engine=video&switch=now&nomap=1&fresh=1&delay=800",
+    "/?switch=now&nomap=1&fresh=1&delay=800",
   );
   const loop = await partStart(
-    "/?engine=video&switch=loop&nomap=1&fresh=1&delay=800",
+    "/?switch=loop&nomap=1&fresh=1&delay=800",
   );
   expect(now).toBeLessThan(1800);
   expect(loop).toBeGreaterThan(2000);
@@ -94,7 +94,7 @@ test("영상 덮개 · 동작 줄이기(B+): 영상 대신 구름 조각 덮개�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?engine=video&nomap=1&fresh=1&delay=2500");
+  await page.goto("/?nomap=1&fresh=1&delay=2500");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
   await expect(page.locator(".cloudcover video")).toHaveCount(0);
   await expect(cover(page)).toHaveAttribute("data-shown", "1", {
@@ -110,9 +110,9 @@ test("영상 덮개 · 동작 줄이기(B+): 영상 대신 구름 조각 덮개�
 });
 
 test("영상 덮개 · 같은 창 두 번째는 짧은 판", async ({ page }) => {
-  await page.goto("/?engine=video&nomap=1&fresh=1&delay=100");
+  await page.goto("/?nomap=1&fresh=1&delay=100");
   await expect(cover(page)).toHaveCount(0, { timeout: 8000 });
-  await page.goto("/?engine=video&nomap=1&delay=100");
+  await page.goto("/?nomap=1&delay=100");
   await expect(cover(page)).toHaveAttribute("data-mode", "short");
   await expect(page.locator('.cloudcover video[data-role="wait"]')).toHaveCount(
     0,
@@ -136,7 +136,7 @@ test("영상 덮개 · 바퀴 끝 잇기: 기다림 영상의 ended 가 끝내 �
       true,
     ),
   );
-  await page.goto("/?engine=video&switch=loop&nomap=1&fresh=1&delay=500");
+  await page.goto("/?switch=loop&nomap=1&fresh=1&delay=500");
   await expect(cover(page)).toHaveAttribute("data-phase", "draw");
   // 한 바퀴 2.4 초 + 여유 1.5 초 + 걷힘 0.8 초(+ 걷힘의 ended 도 막혀 안전 시간 1.5 초) 안쪽
   await expect(cover(page)).toHaveCount(0, { timeout: 9000 });
@@ -148,37 +148,12 @@ test("영상 덮개 · 동작 줄이기도 첫 화면부터 구름 — 덮개가
 }) => {
   // lazy(Suspense)로 PNG 덮개를 불러올 땐 React 가 약 0.3 초 모아 보여 줘 흰 바탕만 보였다(10-19 잼 310 ms)
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addInitScript(() => {
-    const w = window as unknown as { __shownAfter: number | null };
-    w.__shownAfter = null;
-    let coverAt: number | null = null;
-    const tick = () => {
-      if (document.querySelector(".cloudcover") && coverAt === null)
-        coverAt = performance.now();
-      const img = document.querySelector<HTMLImageElement>(".cloudcover-blur");
-      if (coverAt !== null && img && img.complete && img.naturalWidth > 0) {
-        w.__shownAfter = performance.now() - coverAt;
-        return;
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-  await page.goto("/?engine=video&nomap=1&fresh=1&hang=1");
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (window as unknown as { __shownAfter: number | null }).__shownAfter,
-      ),
-    )
-    .not.toBeNull();
-  const after = await page.evaluate(
-    () => (window as unknown as { __shownAfter: number | null }).__shownAfter,
-  );
-  // 문턱(잰 값 · 10-19): 크롬 33 ms → 150 · CI WebKit(소프트웨어 렌더링 · 화면 갱신이 느림) 183 ~ 190 ms → 260 —
+  await watchBlurShown(page);
+  await page.goto("/?nomap=1&fresh=1&hang=1");
+  const after = await blurShownAfter(page);
+  // 문턱(잰 값 · 10-19 · rAF 로 잴 때 정함): 크롬 33 ms → 150 · CI WebKit 183 ~ 190 ms → 260 · DOM 변화 · load 로 재면 둘 다 0.09 초 안 —
   // 가르려는 것은 예전의 0.3 초 넘는 흰 바탕(선명한 그림 해독 · Suspense 모음)이 없는가
-  expect(after!).toBeLessThan(browserName === "chromium" ? 150 : 260);
+  expect(after).toBeLessThan(browserName === "chromium" ? 150 : 260);
 });
 
 test("영상 덮개 · 보통 사용자는 PNG 구름 그림을 받지 않고, 동작 줄이기면 받는다", async ({
@@ -193,11 +168,12 @@ test("영상 덮개 · 보통 사용자는 PNG 구름 그림을 받지 않고, �
     )
       pngArt.push(r.url());
   });
-  await page.goto("/?engine=video&motion=full&nomap=1&fresh=1&delay=300");
+  await page.goto("/?motion=full&nomap=1&fresh=1&delay=300");
   await expect(cover(page)).toHaveCount(0, { timeout: 8000 });
   expect(pngArt).toEqual([]);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?engine=video&nomap=1&fresh=1&delay=300");
+  // 준비 신호 없이(hang) — delay 로 걷히게 두면 부하 걸린 CI 에서 선명한 그림이 풀리기 전에 덮개가 빠져 data-sharp 를 못 봤다(10-19 클라우드 세션)
+  await page.goto("/?nomap=1&fresh=1&hang=1");
   await expect(cover(page)).toHaveAttribute("data-sharp", "1");
   expect(pngArt.length).toBeGreaterThan(0);
 });
