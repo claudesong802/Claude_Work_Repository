@@ -156,8 +156,9 @@ test("선명한 그림을 붙잡아 둬도 흐린 구름이 곧바로 보이고 
     .toBe("1");
 });
 
-test("동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 0.15 초 안에 구름 그림이 풀려 보인다", async ({
+test("동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 곧바로(크롬 0.15 초 · WebKit 0.26 초 안) 구름 그림이 풀려 보인다", async ({
   page,
+  browserName,
 }) => {
   await page.addInitScript(() => {
     const w = window as unknown as { __shownAfter: number | null };
@@ -187,7 +188,9 @@ test("동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 0.15 초
   const after = await page.evaluate(
     () => (window as unknown as { __shownAfter: number | null }).__shownAfter,
   );
-  expect(after!).toBeLessThan(150);
+  // 문턱(잰 값 · 10-19): 크롬 33 ms → 150 · CI WebKit(소프트웨어 렌더링 · 화면 갱신이 느림) 183 ~ 190 ms → 260 —
+  // 가르려는 것은 예전의 0.3 초 넘는 흰 바탕(선명한 그림 해독 · Suspense 모음)이 없는가
+  expect(after!).toBeLessThan(browserName === "chromium" ? 150 : 260);
 });
 
 for (const design of ["a", "b"]) {

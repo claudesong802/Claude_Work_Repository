@@ -142,8 +142,9 @@ test("영상 덮개 · 바퀴 끝 잇기: 기다림 영상의 ended 가 끝내 �
   await expect(cover(page)).toHaveCount(0, { timeout: 9000 });
 });
 
-test("영상 덮개 · 동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 0.15 초 안에 구름 그림이 풀려 보인다", async ({
+test("영상 덮개 · 동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 곧바로(크롬 0.15 초 · WebKit 0.26 초 안) 구름 그림이 풀려 보인다", async ({
   page,
+  browserName,
 }) => {
   // lazy(Suspense)로 PNG 덮개를 불러올 땐 React 가 약 0.3 초 모아 보여 줘 흰 바탕만 보였다(10-19 잼 310 ms)
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -175,7 +176,9 @@ test("영상 덮개 · 동작 줄이기도 첫 화면부터 구름 — 덮개가
   const after = await page.evaluate(
     () => (window as unknown as { __shownAfter: number | null }).__shownAfter,
   );
-  expect(after!).toBeLessThan(150);
+  // 문턱(잰 값 · 10-19): 크롬 33 ms → 150 · CI WebKit(소프트웨어 렌더링 · 화면 갱신이 느림) 183 ~ 190 ms → 260 —
+  // 가르려는 것은 예전의 0.3 초 넘는 흰 바탕(선명한 그림 해독 · Suspense 모음)이 없는가
+  expect(after!).toBeLessThan(browserName === "chromium" ? 150 : 260);
 });
 
 test("영상 덮개 · 보통 사용자는 PNG 구름 그림을 받지 않고, 동작 줄이기면 받는다", async ({
