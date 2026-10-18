@@ -30,6 +30,11 @@ export interface CloudCoverProps {
 
 type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 
+/** 구름 viewBox 둘레 여백 — 굴곡 · 굵기가 잘리지 않게 */
+const VIEW_PAD = 10;
+const VIEW_W = CLOUD_W + VIEW_PAD * 2;
+const VIEW_H = CLOUD_H + VIEW_PAD * 2;
+
 const session = () => (typeof window === "undefined" ? null : window.sessionStorage);
 
 function prefersReducedMotion(): boolean {
@@ -43,20 +48,19 @@ function prefersReducedMotion(): boolean {
 /**
  * 그리던 선을 지금 모습 그대로 멈춘다. 펴지기 동안에는 transform · opacity 애니메이션만 돌게 하려는 것 —
  * stroke-dashoffset 은 메인 스레드에서 돌고, 펴지는 순간은 덮개 밑에서 지도가 그려져 메인 스레드가 가장 바쁘다.
- * commitStyles 가 없는 브라우저에서는 덜 그린 선이 그냥 사라진다(CSS 가 animation 을 끈다).
+ * commitStyles() 는 쓰지 않는다: WebKit 에서 끝난 애니메이션 몇 개의 값을 처음 값(opacity 0)으로 남겼다.
+ * 대신 지금 계산된 값을 한꺼번에 읽고 → inline 으로 쓰고 → 애니메이션을 끈다(읽기를 먼저 몰아 스타일 계산은 한 번).
  */
 function freezeDrawing(root: HTMLElement | null): void {
   if (!root) return;
-  for (const el of root.querySelectorAll<SVGElement>(".cloudcover-stroke, .cloudcover-fill")) {
-    for (const anim of el.getAnimations()) {
-      try {
-        anim.commitStyles();
-      } catch {
-        // 멈춘 값을 못 남겨도 펴지기는 그대로 간다
-      }
-      anim.cancel();
-    }
-  }
+  const strokes = [...root.querySelectorAll<SVGElement>(".cloudcover-stroke")];
+  // 채움 · 빗금 묶음은 opacity 로 나타난다
+  const fills = [...root.querySelectorAll<SVGElement>(".cloudcover-fill, .cloudcover-hatch")];
+  const offsets = strokes.map((el) => getComputedStyle(el).strokeDashoffset);
+  const opacities = fills.map((el) => getComputedStyle(el).opacity);
+  strokes.forEach((el, i) => el.style.setProperty("stroke-dashoffset", offsets[i]));
+  fills.forEach((el, i) => el.style.setProperty("opacity", opacities[i]));
+  for (const el of [...strokes, ...fills]) for (const anim of el.getAnimations()) anim.cancel();
 }
 
 export function CloudCover({ ready, note = null, capMs, onGone, design = "a", reducedMotion }: CloudCoverProps) {
@@ -123,7 +127,9 @@ export function CloudCover({ ready, note = null, capMs, onGone, design = "a", re
         const pieceStyle: CSSVars = {
           "--x": `${c.x}%`,
           "--y": `${c.y}%`,
-          "--w": `min(${c.w}vmax, ${c.w * 12}px)`,
+          // 큰 화면에서 레이어가 끝없이 커지지 않게 상한(px)
+          "--w": `min(${c.w}vw, ${c.w * 14}px)`,
+          "--ratio": VIEW_H / VIEW_W,
           "--dx": c.part.dx,
           "--dy": c.part.dy,
           "--s": c.part.scale,
@@ -134,17 +140,32 @@ export function CloudCover({ ready, note = null, capMs, onGone, design = "a", re
         return (
           <div key={c.id} className="cloudcover-piece" style={pieceStyle}>
             <div className="cloudcover-drift" style={driftStyle}>
-              <svg className="cloudcover-svg" viewBox={`-20 -20 ${CLOUD_W + 40} ${CLOUD_H + 40}`} aria-hidden="true">
+              <svg
+                className="cloudcover-svg"
+                viewBox={`${-VIEW_PAD} ${-VIEW_PAD} ${VIEW_W} ${VIEW_H}`}
+                style={{ "--lw": c.lineWidth } as CSSVars}
+                aria-hidden="true"
+              >
                 <path className="cloudcover-fill" d={c.fill} style={{ "--f": `${c.fillAtMs}ms` } as CSSVars} />
-                {c.strokes.map((s, i) => (
-                  <path
-                    key={i}
-                    className={`cloudcover-stroke cloudcover-stroke-${s.kind}`}
-                    d={s.d}
-                    pathLength={1}
-                    style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
-                  />
-                ))}
+                {c.strokes.map((s, i) =>
+                  s.kind === "hatch" ? (
+                    // 빗금 묶음 = path 하나(선분 여럿) · 그어지지 않고 묶음째 나타난다
+                    <path
+                      key={i}
+                      className="cloudcover-hatch"
+                      d={s.d}
+                      style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
+                    />
+                  ) : (
+                    <path
+                      key={i}
+                      className={`cloudcover-stroke cloudcover-stroke-${s.kind}`}
+                      d={s.d}
+                      pathLength={1}
+                      style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
+                    />
+                  ),
+                )}
               </svg>
             </div>
           </div>

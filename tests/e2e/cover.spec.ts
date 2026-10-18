@@ -89,7 +89,7 @@ test("동작 줄이기(prefers-reduced-motion)도 같은 갈래", async ({ page 
   await expect(page.locator(".cloudcover-piece")).toHaveCount(0);
 });
 
-for (const design of ["a", "b", "c"]) {
+for (const design of ["a", "b", "c", "d"]) {
   test(`시안 ${design}: 펴지기 동안 애니메이션은 transform · opacity 뿐`, async ({ page }) => {
     // 그리는 도중(1.2 초)에 펴지게 해 덜 그린 선이 남는 경우까지 본다
     await page.goto(`/?nomap=1&delay=1200&fresh=1&design=${design}`);
@@ -100,6 +100,19 @@ for (const design of ["a", "b", "c"]) {
     for (const p of props) expect(["transform", "opacity"]).toContain(p);
   });
 }
+
+test("펴지기에 들어가도 그려 둔 모습이 그대로 남는다(채움 · 선)", async ({ page }) => {
+  // 첫 장면(0.6 초)이 다 그려진 뒤 펴지게 — 흰 채움은 모두 보이고 첫 윤곽은 다 그어져 있어야 한다
+  await page.goto("/?nomap=1&delay=1500&fresh=1");
+  await expect(cover(page)).toHaveAttribute("data-phase", "part", { timeout: 3000 });
+  const frozen = await page.evaluate(() => ({
+    fills: [...document.querySelectorAll(".cloudcover-fill")].map((e) => Number(getComputedStyle(e).opacity)),
+    lines: [...document.querySelectorAll(".cloudcover-stroke-line")].map((e) => parseFloat(getComputedStyle(e).strokeDashoffset)),
+  }));
+  expect(frozen.fills.length).toBeGreaterThan(0);
+  for (const o of frozen.fills) expect(o).toBe(1);
+  for (const d of frozen.lines) expect(d).toBeLessThan(0.01);
+});
 
 test("두 번째 짧은 판도 펴지기 동안 transform · opacity 뿐", async ({ page }) => {
   await page.goto("/?nomap=1&fresh=1");
