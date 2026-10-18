@@ -1,0 +1,29 @@
+.demo-map {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+}
+
+.demo-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.demo-debug {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: 8px;
+  z-index: 1001;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #222;
+  color: #222;
+  font: 12px/1.45 ui-monospace, Menlo, monospace;
+  white-space: pre;
+}
+
+.demo-debug a {
+  color: #222;
+  margin-right: 8px;
+}

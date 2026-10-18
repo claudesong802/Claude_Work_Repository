@@ -1,0 +1,166 @@
+/* 구름 덮개 꼴 — 모든 클래스 앞머리는 cloudcover- · 전역 선택자(html · body · *)는 쓰지 않는다.
+   펴지기는 transform · opacity 만 움직인다(WebKit 이 합성 단계에서 따로 돌린다).
+   쓰지 않는 것: SVG 필터 · blur · backdrop-filter · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다. */
+
+.cloudcover {
+  --cloudcover-paper: #ffffff; /* 지도 바탕과 같은 흰색 — 걷힌 뒤 이어지게 */
+  --cloudcover-ink: #222;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cloudcover[data-phase="part"] {
+  pointer-events: none; /* 펴지는 동안 지도 터치를 막지 않는다 */
+}
+
+.cloudcover-sheet {
+  position: absolute;
+  inset: 0;
+  background: var(--cloudcover-paper);
+}
+
+/* ── 구름 조각: 조각마다 레이어 하나 ── */
+.cloudcover-piece {
+  --h: calc(var(--w) * 0.6136); /* viewBox 440 × 270 */
+  position: absolute;
+  left: calc(var(--x) - var(--w) / 2);
+  top: calc(var(--y) - var(--h) / 2);
+  width: var(--w);
+  height: var(--h);
+  will-change: transform, opacity;
+}
+
+.cloudcover-drift {
+  width: 100%;
+  height: 100%;
+  animation: cloudcover-drift var(--drift-s) var(--drift-phase) ease-in-out infinite alternate;
+}
+
+.cloudcover-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.cloudcover-fill {
+  fill: var(--cloudcover-paper);
+  stroke: none;
+  opacity: 0;
+  animation: cloudcover-show 220ms var(--f) ease-out forwards;
+}
+
+.cloudcover-stroke {
+  fill: none;
+  stroke: var(--cloudcover-ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: cloudcover-draw var(--t) var(--d) cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+/* 연필 결: 진하게 한 번 · 옅고 가늘게 한 번 더 · 빗금은 더 옅게 */
+.cloudcover-stroke-line {
+  stroke-width: 2.4;
+  stroke-opacity: 0.82;
+}
+.cloudcover-stroke-again {
+  stroke-width: 1.3;
+  stroke-opacity: 0.45;
+}
+.cloudcover-stroke-hatch {
+  stroke-width: 1.4;
+  stroke-opacity: 0.4;
+}
+
+/* 같은 창 두 번째: 다 그려진 채로 시작해 펴지기만 */
+.cloudcover[data-mode="short"] .cloudcover-stroke {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+.cloudcover[data-mode="short"] .cloudcover-fill {
+  animation: none;
+  opacity: 1;
+}
+
+/* 펴지기에 들어가면 그리기 애니메이션은 끈다(멈춘 모습은 CloudCover 가 inline 으로 남긴다) */
+.cloudcover[data-phase="part"] .cloudcover-stroke,
+.cloudcover[data-phase="part"] .cloudcover-fill {
+  animation: none;
+}
+
+.cloudcover[data-phase="part"] .cloudcover-piece {
+  animation: cloudcover-part calc(var(--cloudcover-part-ms) * (1 - var(--lag)))
+    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.55, 0, 0.25, 1) forwards;
+}
+
+.cloudcover[data-phase="part"] .cloudcover-sheet,
+.cloudcover[data-phase="part"] .cloudcover-note {
+  animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.55) ease-out forwards;
+}
+
+/* 동작 줄이기: 구름 없이 덮개 전체가 짧게 사라지기만 */
+.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-sheet,
+.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-note {
+  animation: none;
+}
+.cloudcover[data-mode="reduced"][data-phase="part"] {
+  animation: cloudcover-hide var(--cloudcover-part-ms) linear forwards;
+}
+
+.cloudcover-note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px));
+  margin: 0;
+  text-align: center;
+  font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: var(--cloudcover-ink);
+  opacity: 0.72;
+}
+
+@keyframes cloudcover-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes cloudcover-show {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes cloudcover-hide {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes cloudcover-drift {
+  from {
+    transform: translate3d(-0.8vmax, 0, 0);
+  }
+  to {
+    transform: translate3d(0.8vmax, -0.4vmax, 0);
+  }
+}
+@keyframes cloudcover-part {
+  to {
+    transform: translate3d(var(--dx), var(--dy), 0) scale(var(--s));
+    opacity: var(--o);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloudcover-drift {
+    animation: none;
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "cloud-cover",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "드라이브 코스 웹앱의 첫 접속 · 새로고침 로딩 덮개(연필 구름) — 떼어 만들고 시연하는 저장소",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "maplibre-gl": "~6.11.2",
+    "react": "~19.3.1",
+    "react-dom": "~19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "~26.6.5",
+    "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.3.0",
+    "@vitejs/plugin-react": "~6.1.2",
+    "typescript": "~7.0.2",
+    "vite": "~8.3.4",
+    "vitest": "~5.0.5"
+  }
+}
