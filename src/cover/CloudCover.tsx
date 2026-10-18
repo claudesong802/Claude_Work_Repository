@@ -43,20 +43,18 @@ function prefersReducedMotion(): boolean {
 /**
  * 그리던 선을 지금 모습 그대로 멈춘다. 펴지기 동안에는 transform · opacity 애니메이션만 돌게 하려는 것 —
  * stroke-dashoffset 은 메인 스레드에서 돌고, 펴지는 순간은 덮개 밑에서 지도가 그려져 메인 스레드가 가장 바쁘다.
- * commitStyles 가 없는 브라우저에서는 덜 그린 선이 그냥 사라진다(CSS 가 animation 을 끈다).
+ * commitStyles() 는 쓰지 않는다: WebKit 에서 끝난 애니메이션 몇 개의 값을 처음 값(opacity 0)으로 남겼다.
+ * 대신 지금 계산된 값을 한꺼번에 읽고 → inline 으로 쓰고 → 애니메이션을 끈다(읽기를 먼저 몰아 스타일 계산은 한 번).
  */
 function freezeDrawing(root: HTMLElement | null): void {
   if (!root) return;
-  for (const el of root.querySelectorAll<SVGElement>(".cloudcover-stroke, .cloudcover-fill")) {
-    for (const anim of el.getAnimations()) {
-      try {
-        anim.commitStyles();
-      } catch {
-        // 멈춘 값을 못 남겨도 펴지기는 그대로 간다
-      }
-      anim.cancel();
-    }
-  }
+  const strokes = [...root.querySelectorAll<SVGElement>(".cloudcover-stroke")];
+  const fills = [...root.querySelectorAll<SVGElement>(".cloudcover-fill")];
+  const offsets = strokes.map((el) => getComputedStyle(el).strokeDashoffset);
+  const opacities = fills.map((el) => getComputedStyle(el).opacity);
+  strokes.forEach((el, i) => el.style.setProperty("stroke-dashoffset", offsets[i]));
+  fills.forEach((el, i) => el.style.setProperty("opacity", opacities[i]));
+  for (const el of [...strokes, ...fills]) for (const anim of el.getAnimations()) anim.cancel();
 }
 
 export function CloudCover({ ready, note = null, capMs, onGone, design = "a", reducedMotion }: CloudCoverProps) {

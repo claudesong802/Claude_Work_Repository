@@ -108,11 +108,11 @@ function toPath(start: Pt, segs: [Pt, Pt, Pt][], wobble: number, rand: () => num
   return close ? d + "Z" : d;
 }
 
-/** 아래쪽 안쪽에 짧은 빗금 몇 줄 — 연필 그림자 */
-function hatches(rand: () => number): string[] {
+/** 아래쪽 안쪽에 짧은 빗금 몇 줄 — 연필 그림자(y0 = 빗금 띠의 위쪽, 세로 비율) */
+function hatches(rand: () => number, y0Frac: number): string[] {
   const n = 3 + Math.floor(rand() * 3);
   const out: string[] = [];
-  const y0 = CLOUD_H * 0.7;
+  const y0 = CLOUD_H * y0Frac;
   for (let i = 0; i < n; i++) {
     const x = CLOUD_W * (0.3 + (0.4 * i) / n) + rand() * 8;
     const y = y0 + rand() * 14;
@@ -122,38 +122,45 @@ function hatches(rand: () => number): string[] {
   return out;
 }
 
-/** 덮개 위 구름 자리(x · y %, w vmax) — 처음 것이 가운데이고 가장 먼저 그려진다 */
+/**
+ * 덮개 위 구름 자리(x · y %, w vmax) — 네 장이 화면 가운데에서 서로 겹친다.
+ * 구름 수는 이것으로 끝이다: 로딩이 길어지면 구름을 늘리지 않고 같은 구름에 덧선 · 빗금을 더한다.
+ */
 const LAYOUT: { x: number; y: number; w: number; seed: number }[] = [
-  { x: 50, y: 47, w: 50, seed: 11 },
-  { x: 16, y: 15, w: 48, seed: 23 },
-  { x: 86, y: 22, w: 46, seed: 37 },
-  { x: 20, y: 80, w: 50, seed: 41 },
-  { x: 82, y: 82, w: 52, seed: 53 },
-  { x: -2, y: 50, w: 38, seed: 67 },
-  { x: 104, y: 54, w: 38, seed: 71 },
-  { x: 54, y: 2, w: 40, seed: 83 },
-  { x: 48, y: 104, w: 42, seed: 97 },
+  { x: 27, y: 32, w: 62, seed: 11 },
+  { x: 77, y: 30, w: 58, seed: 37 },
+  { x: 24, y: 69, w: 60, seed: 41 },
+  { x: 78, y: 71, w: 62, seed: 53 },
 ];
 
+/** 첫 장면: 네 구름의 첫 윤곽을 70 ms 시차로 같이 긋는다 — 마지막 것이 0.59 초에 끝나 최소 보임(0.6 초) 안에 한 장면이 완성된다 */
+export const FIRST_LINE_GAP_MS = 70;
+export const FIRST_LINE_MS = 380;
+
 /**
- * 그리기 시간표: 가운데 구름은 최소 보임(0.6 초) 안에 다 그려지고,
- * 나머지는 0.3 초부터 0.26 초 간격으로 하나씩 이어 그린다(약 2.7 초에 다 그려짐).
+ * 그리기 시간표(ms, 덮개가 뜬 때부터). 첫 장면 뒤로는 길게 기다릴수록 같은 구름에 손이 더 간다:
+ * 0.62 초~ 둘째 덧선 → 1.4 초~ 아래 빗금 → 2.6 초~ 셋째 덧선 → 3.8 초~ 안쪽 빗금(약 4.9 초에 끝, 그 뒤로는 천천히 흐르기만).
  * 빨리 준비되면 그때까지 그린 만큼만 펴진다 — 덜 그린 선은 그 자리에서 멈춘다.
  */
-function drawPlan(order: number): { at: number; line: number; again: number; hatch: number } {
-  if (order === 0) return { at: 0, line: 360, again: 240, hatch: 40 };
-  return { at: 300 + (order - 1) * 260, line: 420, again: 300, hatch: 45 };
+function drawPlan(order: number) {
+  return {
+    line: { at: order * FIRST_LINE_GAP_MS, dur: FIRST_LINE_MS },
+    again: { at: 620 + order * 180, dur: 320 },
+    hatch: { at: 1400 + order * 220, gap: 40, dur: 50 },
+    again2: { at: 2600 + order * 260, dur: 380 },
+    hatch2: { at: 3800 + order * 240, gap: 45, dur: 55 },
+  };
 }
 
 function partFor(design: CoverDesign, x: number, y: number, w: number, order: number): Cloud["part"] {
+  // 늦게 출발하는 몫(lag)은 펴지기 길이 안에 들어간다 — 끝나는 시각은 모두 같다
   switch (design) {
     case "a": {
-      // 가운데서 갈라짐 — 화면 가운데에서 바깥으로 밀려나며 커진다(구름 사이로 내려가는 느낌)
-      if (order === 0) return { dx: "0px", dy: "-4vh", scale: 2.2, opacity: 0, lag: 0 };
+      // 가운데서 갈라짐 — 네 구름이 만나는 가운데가 갈라지며 바깥으로 밀려나고 커진다(구름 사이로 내려가는 느낌)
       const vx = x - 50;
       const vy = (y - 50) * 0.8;
       const l = Math.hypot(vx, vy) || 1;
-      return { dx: `${r1((vx / l) * 80)}vmax`, dy: `${r1((vy / l) * 80)}vmax`, scale: 1.4, opacity: 1, lag: 0.04 };
+      return { dx: `${r1((vx / l) * 80)}vmax`, dy: `${r1((vy / l) * 80)}vmax`, scale: 1.45, opacity: 1, lag: r1(order * 0.03) };
     }
     case "b": {
       // 한쪽으로 걷힘 — 오른쪽 것부터 차례로 오른쪽 밖으로 쓸려 간다
@@ -172,13 +179,16 @@ export function buildClouds(design: CoverDesign): Cloud[] {
     const shape = outline(rand);
     const plan = drawPlan(order);
     const strokes: Stroke[] = [
-      { d: toPath(shape.start, shape.segs, 3, rand, false), kind: "line", delayMs: plan.at, durMs: plan.line },
-      // 둘째 줄은 조금 늦게 · 조금 더 어긋나게 — 한 번에 그은 것 같지 않게
-      { d: toPath(shape.start, shape.segs, 7, rand, false), kind: "again", delayMs: plan.at + Math.round(plan.line * 0.45), durMs: plan.again },
+      { d: toPath(shape.start, shape.segs, 3, rand, false), kind: "line", delayMs: plan.line.at, durMs: plan.line.dur },
+      // 덧선은 조금 더 어긋나게 — 한 번에 그은 것 같지 않게
+      { d: toPath(shape.start, shape.segs, 7, rand, false), kind: "again", delayMs: plan.again.at, durMs: plan.again.dur },
     ];
-    const hatchAt = plan.at + plan.line + 20;
-    hatches(rand).forEach((d, i) => {
-      strokes.push({ d, kind: "hatch", delayMs: hatchAt + i * 35, durMs: plan.hatch });
+    hatches(rand, 0.7).forEach((d, i) => {
+      strokes.push({ d, kind: "hatch", delayMs: plan.hatch.at + i * plan.hatch.gap, durMs: plan.hatch.dur });
+    });
+    strokes.push({ d: toPath(shape.start, shape.segs, 10, rand, false), kind: "again", delayMs: plan.again2.at, durMs: plan.again2.dur });
+    hatches(rand, 0.55).forEach((d, i) => {
+      strokes.push({ d, kind: "hatch", delayMs: plan.hatch2.at + i * plan.hatch2.gap, durMs: plan.hatch2.dur });
     });
     return {
       id: order,
@@ -186,7 +196,7 @@ export function buildClouds(design: CoverDesign): Cloud[] {
       y: c.y,
       w: c.w,
       fill: toPath(shape.start, shape.segs, 0, rand, true),
-      fillAtMs: plan.at + Math.round(plan.line * 0.7),
+      fillAtMs: plan.line.at + Math.round(plan.line.dur * 0.7),
       strokes,
       part: partFor(design, c.x, c.y, c.w, order),
       drift: { periodS: 8 + rand() * 5, phaseS: -rand() * 8 },

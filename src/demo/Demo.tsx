@@ -7,6 +7,7 @@ import type { DemoParams } from "./params";
 /** 덮개 밑에 지도 하나 · 주소 칸 갈래대로 준비 신호와 note 를 낸다 */
 export function Demo({ params }: { params: DemoParams }) {
   const [mapIdle, setMapIdle] = useState(params.noMap);
+  const [idleAt, setIdleAt] = useState<number | null>(null);
   const [warm, setWarm] = useState(params.warmMs > 0);
   const [ready, setReady] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
@@ -26,7 +27,14 @@ export function Demo({ params }: { params: DemoParams }) {
 
   return (
     <>
-      {params.noMap ? <div className="demo-map" data-testid="demo-map" /> : <DemoMap onIdle={() => setMapIdle(true)} />}
+      {params.noMap ? <div className="demo-map" data-testid="demo-map" /> : (
+        <DemoMap
+          onIdle={() => {
+            setIdleAt(performance.now());
+            setMapIdle(true);
+          }}
+        />
+      )}
       {coverGone ? null : (
         <CloudCover
           ready={ready}
@@ -37,7 +45,7 @@ export function Demo({ params }: { params: DemoParams }) {
           onGone={() => setCoverGone(true)}
         />
       )}
-      {params.debug ? <DebugPanel params={params} ready={ready} /> : null}
+      {params.debug ? <DebugPanel params={params} ready={ready} idleAt={idleAt} /> : null}
     </>
   );
 }

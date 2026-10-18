@@ -27,3 +27,7 @@
   color: #222;
   margin-right: 8px;
 }
+
+.demo-debug-note {
+  opacity: 0.6;
+}
