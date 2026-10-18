@@ -30,6 +30,11 @@ export interface CloudCoverProps {
 
 type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 
+/** 구름 viewBox 둘레 여백 — 굴곡 · 굵기가 잘리지 않게 */
+const VIEW_PAD = 10;
+const VIEW_W = CLOUD_W + VIEW_PAD * 2;
+const VIEW_H = CLOUD_H + VIEW_PAD * 2;
+
 const session = () => (typeof window === "undefined" ? null : window.sessionStorage);
 
 function prefersReducedMotion(): boolean {
@@ -49,7 +54,8 @@ function prefersReducedMotion(): boolean {
 function freezeDrawing(root: HTMLElement | null): void {
   if (!root) return;
   const strokes = [...root.querySelectorAll<SVGElement>(".cloudcover-stroke")];
-  const fills = [...root.querySelectorAll<SVGElement>(".cloudcover-fill")];
+  // 채움 · 빗금 묶음은 opacity 로 나타난다
+  const fills = [...root.querySelectorAll<SVGElement>(".cloudcover-fill, .cloudcover-hatch")];
   const offsets = strokes.map((el) => getComputedStyle(el).strokeDashoffset);
   const opacities = fills.map((el) => getComputedStyle(el).opacity);
   strokes.forEach((el, i) => el.style.setProperty("stroke-dashoffset", offsets[i]));
@@ -121,7 +127,9 @@ export function CloudCover({ ready, note = null, capMs, onGone, design = "a", re
         const pieceStyle: CSSVars = {
           "--x": `${c.x}%`,
           "--y": `${c.y}%`,
-          "--w": `min(${c.w}vmax, ${c.w * 12}px)`,
+          // 큰 화면에서 레이어가 끝없이 커지지 않게 상한(px)
+          "--w": `min(${c.w}vw, ${c.w * 14}px)`,
+          "--ratio": VIEW_H / VIEW_W,
           "--dx": c.part.dx,
           "--dy": c.part.dy,
           "--s": c.part.scale,
@@ -132,17 +140,32 @@ export function CloudCover({ ready, note = null, capMs, onGone, design = "a", re
         return (
           <div key={c.id} className="cloudcover-piece" style={pieceStyle}>
             <div className="cloudcover-drift" style={driftStyle}>
-              <svg className="cloudcover-svg" viewBox={`-20 -20 ${CLOUD_W + 40} ${CLOUD_H + 40}`} aria-hidden="true">
+              <svg
+                className="cloudcover-svg"
+                viewBox={`${-VIEW_PAD} ${-VIEW_PAD} ${VIEW_W} ${VIEW_H}`}
+                style={{ "--lw": c.lineWidth } as CSSVars}
+                aria-hidden="true"
+              >
                 <path className="cloudcover-fill" d={c.fill} style={{ "--f": `${c.fillAtMs}ms` } as CSSVars} />
-                {c.strokes.map((s, i) => (
-                  <path
-                    key={i}
-                    className={`cloudcover-stroke cloudcover-stroke-${s.kind}`}
-                    d={s.d}
-                    pathLength={1}
-                    style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
-                  />
-                ))}
+                {c.strokes.map((s, i) =>
+                  s.kind === "hatch" ? (
+                    // 빗금 묶음 = path 하나(선분 여럿) · 그어지지 않고 묶음째 나타난다
+                    <path
+                      key={i}
+                      className="cloudcover-hatch"
+                      d={s.d}
+                      style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
+                    />
+                  ) : (
+                    <path
+                      key={i}
+                      className={`cloudcover-stroke cloudcover-stroke-${s.kind}`}
+                      d={s.d}
+                      pathLength={1}
+                      style={{ "--d": `${s.delayMs}ms`, "--t": `${s.durMs}ms` } as CSSVars}
+                    />
+                  ),
+                )}
               </svg>
             </div>
           </div>

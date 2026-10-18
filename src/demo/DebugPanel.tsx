@@ -90,6 +90,7 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       <a href={link("a")}>a</a>
       <a href={link("b")}>b</a>
       <a href={link("c")}>c</a>
+      <a href={link("d")}>d</a>
       <a href={window.location.search}>새로고침</a>
     </div>
   );

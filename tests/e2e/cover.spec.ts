@@ -89,7 +89,7 @@ test("동작 줄이기(prefers-reduced-motion)도 같은 갈래", async ({ page 
   await expect(page.locator(".cloudcover-piece")).toHaveCount(0);
 });
 
-for (const design of ["a", "b", "c"]) {
+for (const design of ["a", "b", "c", "d"]) {
   test(`시안 ${design}: 펴지기 동안 애니메이션은 transform · opacity 뿐`, async ({ page }) => {
     // 그리는 도중(1.2 초)에 펴지게 해 덜 그린 선이 남는 경우까지 본다
     await page.goto(`/?nomap=1&delay=1200&fresh=1&design=${design}`);

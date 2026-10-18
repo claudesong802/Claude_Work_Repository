@@ -1,7 +1,7 @@
 # 구름 덮개 (cloud cover)
 
 「드라이브 코스」 웹앱의 첫 접속 · 새로고침 로딩 덮개를 본 프로젝트와 떼어 만들고 시연하는 저장소입니다.
-연필 선이 구름을 그리는 동안 지도가 준비되고, 준비 신호(`map.once("idle")`)가 오면 구름이 펴지며 지도가 드러납니다.
+펜 선이 옆으로 긴 뭉게구름을 그리는 동안 지도가 준비되고, 준비 신호(`map.once("idle")`)가 오면 구름이 펴지며 지도가 드러납니다.
 
 - 덮개(옮겨 붙일 몫): `src/cover/`
 - 시연 페이지(옮기지 않음): `src/demo/` — 덮개 밑에 진짜 MapLibre 지도(OpenFreeMap positron)
@@ -27,14 +27,14 @@ GitHub Actions: 푸시 · PR 마다 `검사`(typecheck · build · test · e2e),
 
 | 칸 | 뜻 | 예 |
 | --- | --- | --- |
-| `design=a\|b\|c` | 시안 고르기 — a 가운데서 갈라짐 · b 한쪽으로 걷힘 · c 위로 걷힘 | `?design=b` |
+| `design=a\|b\|c\|d` | 시안 고르기 — a 가운데서 갈라짐 · b 한쪽으로 걷힘 · c 위로 걷힘 · d 띠마다 좌우로 엇갈림 | `?design=d` |
 | `delay=<ms>` | 지도 idle 뒤 준비 신호를 늦춤(긴 로딩 흉내) | `?delay=4000` |
 | `hang=1` | 준비 신호 없음 → 상한에 펴짐 | `?hang=1` |
 | `cap=<ms>` | 상한 바꾸기(기본 15000) | `?hang=1&cap=5000` |
 | `warm=<ms>` | 그동안 「서버 준비 중」 표시 · 준비 신호도 그 뒤 | `?warm=3000` |
 | `reduced=1` | 동작 줄이기 흉내(prefers-reduced-motion 과 같은 갈래) | `?reduced=1` |
 | `fresh=1` | 같은 창 표시를 지우고 첫 접속처럼 | `?fresh=1` |
-| `debug=1` | 구석 진단: 프레임 간격 최대(펴지기 중 따로) · 준비 · 펴지기 시작 → 끝 시각, 시안 바꾸기 고리 | `?debug=1` |
+| `debug=1` | 구석 진단: 펴지기 중 프레임 수 · 가장 긴 간격 · 50 ms 넘은 프레임 수 · 지도 idle · 준비 · 펴지기 시작 → 끝 시각 · devicePixelRatio, 시안 바꾸기 고리 | `?debug=1` |
 | `nomap=1` | 지도 없이 시계로만 준비 신호(시험용) | `?nomap=1&delay=1000` |
 
 새로고침하면 「같은 창 두 번째」 갈래(펴지기만 0.3 초)가 됩니다. 첫 접속 모습을 다시 보려면 `fresh=1` 을 붙입니다.
@@ -66,7 +66,7 @@ GitHub Actions: 푸시 · PR 마다 `검사`(typecheck · build · test · e2e),
    | `note` | `string \| null` | 덮개 아래 한 줄. 없으면 안 보임 |
    | `capMs` | `number` | 상한 — 기본 15000 |
    | `onGone` | `() => void` | 덮개가 다 사라진 뒤 한 번 |
-   | `design` | `"a" \| "b" \| "c"` | 시안 단계에서만 — 고른 뒤 뺌 |
+   | `design` | `"a" \| "b" \| "c" \| "d"` | 시안 단계에서만 — 고른 뒤 뺌 |
    | `reducedMotion` | `boolean` | 동작 줄이기를 밖에서 정함(없으면 media query) |
 
 3. 덮개가 지도 묶음을 기다리지 않게 maplibre 를 `import()` 로 늦게 불러오는 편이 좋습니다 — 시연은 이렇게 해서 덮개가 첫 묶음(약 73 KB gzip)만으로 뜹니다.
