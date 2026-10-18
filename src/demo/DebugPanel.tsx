@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { DemoParams } from "./params";
 
 interface Marks {
+  /** 덮개 갈래(full · short · reduced) — 처음 본 값 */
+  mode: string | null;
   /** 지도 idle 시각(nomap 이면 null) */
   idleAt: number | null;
   /** 덮개에 ready 를 켠 시각(idle · 서버 준비 · delay 뒤) */
@@ -38,12 +40,15 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
     window.__coverMarks = m;
     // 펴지기 시작 · 끝 시각은 data-phase 변화로 잰다 — 메인 스레드가 막혀 rAF 가 한 번도 안 돌아도 놓치지 않게
     const watch = () => {
-      const phase = document.querySelector<HTMLElement>(".cloudcover")?.dataset.phase ?? "gone";
+      const el = document.querySelector<HTMLElement>(".cloudcover");
+      if (el && m.mode === null) m.mode = el.dataset.mode ?? null;
+      const phase = el?.dataset.phase ?? "gone";
       if (phase !== "draw" && m.partAt === null) m.partAt = performance.now();
       if (phase === "gone" && m.partAt !== null && m.goneAt === null) m.goneAt = performance.now();
     };
     const mo = new MutationObserver(watch);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase"] });
+    watch();
     // 프레임 간격: 한 프레임 구간이 펴지기 구간과 겹치면 펴지기 중 프레임으로 센다
     let last = performance.now();
     let raf = 0;
@@ -76,7 +81,7 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   }, [ready]);
 
   const base = new URLSearchParams(window.location.search);
-  const link = (key: "design" | "sky", value: string) => {
+  const link = (key: "design" | "sky" | "motion", value: string) => {
     const q = new URLSearchParams(base);
     q.set(key, value);
     q.set("fresh", "1");
@@ -86,6 +91,7 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   return (
     <div className="demo-debug" aria-hidden="true">
       {`시안 ${params.design} · 하늘 ${params.sky} · devicePixelRatio ${window.devicePixelRatio}\n`}
+      {`갈래 ${MODE_LABEL[marks.mode ?? ""] ?? "—"} · 기기 동작 줄이기 ${reducedSetting() ? "켜짐" : "꺼짐"}\n`}
       {`지도 idle ${ms(marks.idleAt)} · 준비 ${ms(marks.readyAt)} · 펴지기 ${ms(marks.partAt)} → ${ms(marks.goneAt)} ms\n`}
       {`펴지기 중 프레임 ${marks.partFrames} · 가장 긴 간격 ${ms(marks.maxGapPart)} ms · ${SLOW_FRAME_MS} ms 넘은 것 ${marks.slowFramesPart}\n`}
       {`(페이지 전체 가장 긴 간격 ${ms(marks.maxGap)} ms)\n`}
@@ -98,11 +104,22 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       <a href={link("sky", "dense")}>가</a>
       <a href={link("sky", "mid")}>다</a>
       <a href={link("sky", "sparse")}>나</a>
+      <a href={link("motion", "full")}>동작 강제</a>
       <a href={window.location.search}>새로고침</a>
     </div>
   );
 }
 
+const MODE_LABEL: Record<string, string> = { full: "첫 접속", short: "같은 창 두 번째", reduced: "동작 줄이기(구름 없음)" };
+
+function reducedSetting(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
 function blank(): Marks {
-  return { idleAt: null, readyAt: null, partAt: null, goneAt: null, maxGap: 0, partFrames: 0, maxGapPart: 0, slowFramesPart: 0 };
+  return { mode: null, idleAt: null, readyAt: null, partAt: null, goneAt: null, maxGap: 0, partFrames: 0, maxGapPart: 0, slowFramesPart: 0 };
 }
