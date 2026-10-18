@@ -103,3 +103,8 @@ GitHub Actions: 푸시 · PR 마다 `검사`(typecheck · build · test · e2e),
 - 원본: 1920×1080 · 30 fps RGBA PNG(기다림 72 · 걷힘 24 장 · 기다림 첫 = 끝 = 걷힘 첫 프레임). 다시 만드는 법은 `scripts/cloud-video.sh`.
 - 저전력 모드 · 형식을 못 읽음 → 첫 장면 그림이 커지며 사라지는 대체 길(`data-fallback`).
 - 동작 줄이기 → 영상(크게 확대되며 날아감)을 쓰지 않고 구름 조각 덮개(`CloudCover`)의 줄인 펴짐으로 넘긴다. 그 갈래에서만 따로 불러온다(`lazy`) — 영상만 쓰는 앱이면 보통 사용자는 PNG 구름을 받지 않는다(시연 페이지는 두 방식을 다 불러 Vite 가 「INEFFECTIVE_DYNAMIC_IMPORT」 경고를 낸다).
+
+## 흐린 미리보기 구름
+
+`src/cover/cloudblur.ts` — 만든 파일(`scripts/cloud-assets.py` 가 씀 · 손으로 고치지 않음). 구름 6장을 긴 변 200 px WebP 로 줄여 data URL 로 싣는다(34 KB).
+덮개는 첫 화면부터 이 흐린 구름을 띄우고, 선명한 그림이 다 풀리면 그 위에 겹쳐 나타난다(`data-sharp`) — 선명한 그림 6장 해독 약 0.3 초 동안 흰 바탕만 보이던 것을 없앰(사용자 10-19).

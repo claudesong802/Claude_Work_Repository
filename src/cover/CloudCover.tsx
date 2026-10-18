@@ -1,10 +1,22 @@
 // 첫 접속 · 새로고침 로딩 덮개 — 손그림 구름이 화면을 덮은 채 천천히 흐르다가,
 // 지도가 준비되면 가운데가 열리며 구름이 커지면서 바깥으로 밀려나 지도가 드러난다(구름을 뚫고 내려가는 느낌).
 // 이 폴더(src/cover)는 본 프로젝트로 그대로 옮겨 붙인다: react 와 이 폴더 밖을 import 하지 않고, 전역 CSS 를 건드리지 않는다.
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import "./cloudcover.css";
 import { ART_URL, artReady } from "./cloudart";
-import { buildClouds, SKY_PART_MS, type CoverDesign, type Sky } from "./cloudshape";
+import { BLUR_URL } from "./cloudblur";
+import {
+  buildClouds,
+  SKY_PART_MS,
+  type CoverDesign,
+  type Sky,
+} from "./cloudshape";
 import {
   decideCover,
   markSeen,
@@ -36,7 +48,8 @@ export interface CloudCoverProps {
 
 type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 
-const session = () => (typeof window === "undefined" ? null : window.sessionStorage);
+const session = () =>
+  typeof window === "undefined" ? null : window.sessionStorage;
 
 function prefersReducedMotion(): boolean {
   try {
@@ -58,30 +71,30 @@ export function CloudCover({
 }: CloudCoverProps) {
   const [mountedAt] = useState(() => performance.now());
   const [mode] = useState(() =>
-    pickMode({ reducedMotion: reducedMotion ?? prefersReducedMotion(), seenBefore: readSeen(session) }),
+    pickMode({
+      reducedMotion: reducedMotion ?? prefersReducedMotion(),
+      seenBefore: readSeen(session),
+    }),
   );
-  const timing = useMemo(() => timingFor(mode, capMs, SKY_PART_MS[sky]), [mode, capMs, sky]);
+  const timing = useMemo(
+    () => timingFor(mode, capMs, SKY_PART_MS[sky]),
+    [mode, capMs, sky],
+  );
   // 동작 줄이기도 구름은 보인다(B안) — 흐름 · 터짐은 CSS 가 끈다(data-mode="reduced")
   const clouds = useMemo(() => buildClouds(design, sky), [design, sky]);
 
-  // 구름을 띄우는 때: 그림이 다 받아져 해독된 때 — 늦어도 artWaitMs 뒤(그림 없이라도 시간은 간다).
-  // 그 전에는 불투명한 흰 바탕만(지도가 먼저 비치지 않게). 두 번째는 기다리지 않는다.
-  const [artAt, setArtAt] = useState<number | null>(() => (timing.artWaitMs === 0 ? mountedAt : null));
+  // 구름은 첫 화면부터 — 코드에 든 흐린 미리보기(cloudblur · data URL)로 바로 띄운다. 그래서 「구름이 보이기 시작한 때」(artAt) = 덮개가 뜬 때.
+  // 선명한 그림(assets/*.webp)은 다 받아져 해독되면(sharp) 그 위에 겹쳐 나타난다(사용자 10-19 「없앰 방식으로」 —
+  // 전엔 선명한 그림 6장 해독 약 0.3 초 동안 흰 바탕만 보였다).
+  const artAt = mountedAt;
+  const [sharp, setSharp] = useState(false);
   useEffect(() => {
-    if (artAt !== null) return;
-    let done = false;
-    const start = () => {
-      if (done) return;
-      done = true;
-      setArtAt(performance.now());
-    };
-    const t = setTimeout(start, Math.max(0, mountedAt + timing.artWaitMs - performance.now()));
-    void artReady().then(start);
+    let live = true;
+    void artReady().then(() => live && setSharp(true));
     return () => {
-      done = true;
-      clearTimeout(t);
+      live = false;
     };
-  }, [artAt, mountedAt, timing.artWaitMs]);
+  }, []);
 
   // 준비 신호는 한 번 켜지면 그대로 둔다(다시 꺼져도 덮개를 되살리지 않는다)
   const [readyAt, setReadyAt] = useState<number | null>(null);
@@ -90,14 +103,25 @@ export function CloudCover({
   }, [ready, readyAt]);
 
   const phaseRef = useRef<CoverPhase>("draw");
-  const [decision, setDecision] = useState<CoverDecision>({ phase: "draw", partAt: null, reason: null, waitMs: null });
+  const [decision, setDecision] = useState<CoverDecision>({
+    phase: "draw",
+    partAt: null,
+    reason: null,
+    waitMs: null,
+  });
   const onPartStartRef = useRef(onPartStart);
   onPartStartRef.current = onPartStart;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const step = () => {
-      const d = decideCover({ mountedAt, artAt, readyAt, now: performance.now(), timing });
+      const d = decideCover({
+        mountedAt,
+        artAt,
+        readyAt,
+        now: performance.now(),
+        timing,
+      });
       if (d.phase !== "draw" && phaseRef.current === "draw") {
         markSeen(session);
         onPartStartRef.current?.(timing.partMs);
@@ -133,6 +157,7 @@ export function CloudCover({
       data-sky={sky}
       data-reason={decision.reason ?? undefined}
       data-shown={shown ? "1" : undefined}
+      data-sharp={sharp ? "1" : undefined}
       role="progressbar"
       aria-label="지도를 불러오는 중"
       aria-busy={decision.phase === "draw"}
@@ -159,7 +184,10 @@ export function CloudCover({
               "--drift-x": `${c.drift.dx}vmax`,
               "--drift-y": `${c.drift.dy}vmax`,
             };
-            const artStyle: CSSVars = { "--rot": `${c.rot}deg`, "--flip": c.flip ? -1 : 1 };
+            const artStyle: CSSVars = {
+              "--rot": `${c.rot}deg`,
+              "--flip": c.flip ? -1 : 1,
+            };
             return (
               <div
                 key={c.id}
@@ -169,7 +197,20 @@ export function CloudCover({
                 data-burst={c.part.opacity === 0 ? "1" : undefined}
               >
                 <div className="cloudcover-drift" style={driftStyle}>
-                  <img className="cloudcover-art" src={ART_URL[c.art]} alt="" draggable={false} style={artStyle} />
+                  <img
+                    className="cloudcover-art cloudcover-blur"
+                    src={BLUR_URL[c.art]}
+                    alt=""
+                    draggable={false}
+                    style={artStyle}
+                  />
+                  <img
+                    className="cloudcover-art cloudcover-sharp"
+                    src={ART_URL[c.art]}
+                    alt=""
+                    draggable={false}
+                    style={artStyle}
+                  />
                 </div>
               </div>
             );

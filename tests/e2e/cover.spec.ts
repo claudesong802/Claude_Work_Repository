@@ -9,6 +9,8 @@ const phase = (page: Page) => cover(page).getAttribute("data-phase");
 
 /** 펴지기 동안 매 프레임 document.getAnimations() 의 키프레임 속성을 모은다 */
 function partAnimationProps(page: Page) {
+  // 화면 갱신(rAF)에만 기대면 WebKit 은 펴지는 동안 rAF 를 한 번도 안 돌려 잴 기회가 0 이었다(10-19 CI) —
+  // data-phase 가 바뀌는 순간(MutationObserver)에도 잰다. getAnimations() 가 스타일을 갱신하므로 그 자리에서 새 애니메이션이 보인다.
   return page.evaluate(
     () =>
       new Promise<{ props: string[]; samples: number }>((resolve) => {
@@ -20,9 +22,15 @@ function partAnimationProps(page: Page) {
           "computedOffset",
         ]);
         let samples = 0;
-        const tick = () => {
+        let done = false;
+        const sample = () => {
+          if (done) return;
           const el = document.querySelector<HTMLElement>(".cloudcover");
-          if (!el) return resolve({ props: [...props], samples });
+          if (!el) {
+            done = true;
+            mo.disconnect();
+            return resolve({ props: [...props], samples });
+          }
           if (el.dataset.phase === "part") {
             samples++;
             for (const a of document.getAnimations()) {
@@ -31,7 +39,17 @@ function partAnimationProps(page: Page) {
                 for (const p of Object.keys(k)) if (!meta.has(p)) props.add(p);
             }
           }
-          requestAnimationFrame(tick);
+        };
+        const mo = new MutationObserver(sample);
+        mo.observe(document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ["data-phase"],
+        });
+        const tick = () => {
+          sample();
+          if (!done) requestAnimationFrame(tick);
         };
         tick();
       }),
@@ -139,17 +157,22 @@ test("동작 줄이기(prefers-reduced-motion)도 같은 갈래 · 기다리는 
   await page.goto("/?nomap=1&fresh=1&hang=1");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
   await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
-  const running = await page.evaluate(
+  // 「흐르지 않는다」 = 위치 · 크기를 바꾸는 애니메이션이 없다(선명한 그림이 겹쳐 나타나는 투명도 전환은 움직임이 아니다)
+  const moving = await page.evaluate(
     () =>
-      document
-        .getAnimations()
-        .filter(
-          (a) =>
-            (a.effect as KeyframeEffect | null)?.target instanceof Element &&
-            (a.effect as KeyframeEffect).target!.closest(".cloudcover-piece"),
-        ).length,
+      document.getAnimations().filter((a) => {
+        const e = a.effect as KeyframeEffect | null;
+        if (
+          !(e?.target instanceof Element) ||
+          !e.target.closest(".cloudcover-piece")
+        )
+          return false;
+        return e
+          .getKeyframes()
+          .some((k) => "transform" in k || "translate" in k || "scale" in k);
+      }).length,
   );
-  expect(running).toBe(0);
+  expect(moving).toBe(0);
 });
 
 test("기기가 동작 줄이기여도 motion=full 이면 첫 접속 모습(시연 확인용)", async ({

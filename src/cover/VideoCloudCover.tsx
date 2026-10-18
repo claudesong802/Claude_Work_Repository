@@ -2,15 +2,9 @@
 // 걷힘 영상은 구름이 빠진 자리가 진짜 투명이라 그 밑의 지도가 그대로 드러난다.
 // 판정(언제 펴나 · 갈래)은 PNG 덮개와 같은 coverclock 을 쓴다. 다른 것은 「무엇으로 그리나」 뿐.
 // 이 폴더(src/cover)는 본 프로젝트로 그대로 옮겨 붙인다: react 와 이 폴더 밖을 import 하지 않고, 전역 CSS 를 건드리지 않는다.
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import "./cloudcover.css";
+import { CloudCover } from "./CloudCover";
 import {
   POSTER_URL,
   REVEAL_MS,
@@ -80,12 +74,9 @@ function partLength(mode: CoverMode): number {
   return REVEAL_MS;
 }
 
-// 동작 줄이기(B+)는 영상(크게 확대되며 날아감)을 쓰지 않고 구름 조각 덮개의 줄인 펴짐으로 — 그 갈래에서만 따로 불러온다
-// (보통 영상 사용자가 PNG 구름까지 받지 않게)
-const CloudCoverLazy = lazy(() =>
-  import("./CloudCover").then((m) => ({ default: m.CloudCover })),
-);
-
+// 동작 줄이기(B+)는 영상(크게 확대되며 날아감)을 쓰지 않고 구름 조각 덮개의 줄인 펴짐으로 넘긴다.
+// lazy 로 따로 불러오지 않는다 — React 가 Suspense 로 늦게 온 화면을 약 0.3 초 모아 보여 줘, 그동안 흰 바탕만 보였다(10-19 잼 310 ms).
+// 구름 그림(PNG 조각) 받기는 CloudCover 가 뜰 때 시작하므로(cloudart) 보통 영상 사용자는 받지 않는다.
 export function VideoCloudCover(props: VideoCloudCoverProps) {
   const [reduced] = useState(
     () => props.reducedMotion ?? prefersReducedMotion(),
@@ -93,29 +84,14 @@ export function VideoCloudCover(props: VideoCloudCoverProps) {
   if (!reduced) return <VideoCover {...props} reducedMotion={false} />;
   const { ready, note, capMs, onGone, onPartStart } = props;
   return (
-    <Suspense
-      fallback={
-        <div
-          className="cloudcover"
-          data-phase="draw"
-          data-mode="reduced"
-          role="progressbar"
-          aria-label="지도를 불러오는 중"
-          aria-busy
-        >
-          <div className="cloudcover-sheet" />
-        </div>
-      }
-    >
-      <CloudCoverLazy
-        ready={ready}
-        note={note}
-        capMs={capMs}
-        onGone={onGone}
-        onPartStart={onPartStart}
-        reducedMotion
-      />
-    </Suspense>
+    <CloudCover
+      ready={ready}
+      note={note}
+      capMs={capMs}
+      onGone={onGone}
+      onPartStart={onPartStart}
+      reducedMotion
+    />
   );
 }
 
