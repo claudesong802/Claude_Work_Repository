@@ -16,6 +16,9 @@ test("진짜 지도: idle 에 걷히고 콘솔 오류가 없다", async ({ page 
   expect(marks?.idleAt).not.toBeNull();
   expect(marks?.readyAt).not.toBeNull();
   expect(marks!.readyAt!).toBeGreaterThanOrEqual(marks!.idleAt!);
-  expect(marks?.partFrames).toBeGreaterThan(0);
+  // 펴지기 시작 · 끝이 기록되고 끝이 시작보다 뒤(프레임 수는 세지 않는다 — 소프트웨어 지도 렌더에서는
+  // 펴지는 동안 메인 스레드가 막혀 rAF 가 0 번일 수 있고, 펴지기 자체는 합성 단계에서 돈다)
+  expect(marks?.partAt).not.toBeNull();
+  expect(marks!.goneAt!).toBeGreaterThan(marks!.partAt!);
   expect(errors).toEqual([]);
 });

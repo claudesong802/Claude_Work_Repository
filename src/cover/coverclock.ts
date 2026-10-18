@@ -8,8 +8,10 @@ export type CoverMode = "full" | "short" | "reduced";
 export type CoverPhase = "draw" | "part" | "gone";
 
 export interface CoverTiming {
-  /** 이보다 먼저는 펴지지 않는다 — 구름 하나가 다 그려지는 길이 */
+  /** 그리기 시작 뒤 이보다 먼저는 펴지지 않는다 — 첫 장면이 다 그려지는 길이 */
   minShowMs: number;
+  /** 구름 그림이 이만큼 안 오면 기다리지 않고 그리기를 시작한다 */
+  artWaitMs: number;
   /** 펴지기 길이 — 준비가 빨리 오든 늦게 오든 같다 */
   partMs: number;
   /** 준비 신호가 이만큼 안 오면 그냥 편다 — 구름 뒤에 갇히지 않게 */
@@ -17,10 +19,12 @@ export interface CoverTiming {
 }
 
 export const MIN_SHOW_MS = 600;
-export const PART_MS = 900;
+/** 첫 접속 펴지기 기본 길이 — 하늘 결(sky)마다 따로 줄 수 있다(cloudshape SKY_PART_MS) */
+export const PART_MS = 600;
 export const SHORT_PART_MS = 300;
 export const REDUCED_PART_MS = 200;
 export const DEFAULT_CAP_MS = 15000;
+export const ART_WAIT_MS = 1200;
 
 /** 같은 창에서 덮개를 이미 한 번 다 봤다는 표시(sessionStorage 열쇠) */
 export const SEEN_KEY = "cloudcover-seen";
@@ -30,14 +34,14 @@ export function pickMode(opts: { reducedMotion: boolean; seenBefore: boolean }):
   return opts.seenBefore ? "short" : "full";
 }
 
-export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS): CoverTiming {
+export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS, partMs: number = PART_MS): CoverTiming {
   switch (mode) {
     case "full":
-      return { minShowMs: MIN_SHOW_MS, partMs: PART_MS, capMs };
+      return { minShowMs: MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs, capMs };
     case "short":
-      return { minShowMs: 0, partMs: SHORT_PART_MS, capMs };
+      return { minShowMs: 0, artWaitMs: 0, partMs: SHORT_PART_MS, capMs };
     case "reduced":
-      return { minShowMs: 0, partMs: REDUCED_PART_MS, capMs };
+      return { minShowMs: 0, artWaitMs: 0, partMs: REDUCED_PART_MS, capMs };
   }
 }
 
@@ -51,20 +55,27 @@ export interface CoverDecision {
   waitMs: number | null;
 }
 
+/** 그리기가 시작된(될) 시각 — 그림이 준비된 때, 늦어도 덮개가 뜬 뒤 artWaitMs */
+export function drawStart(mountedAt: number, artAt: number | null, timing: CoverTiming): number {
+  return Math.min(artAt ?? Infinity, mountedAt + timing.artWaitMs);
+}
+
 /**
  * 지금 어떤 장면인가.
- * 펴지기 시작 = max(준비 시각, 시작 + 최소 보임) 이되 시작 + 상한 을 넘지 않는다.
+ * 펴지기 시작 = max(준비 시각, 그리기 시작 + 최소 보임) 이되 덮개가 뜬 때 + 상한 을 넘지 않는다.
  * 준비가 상한 뒤에 와도 이미 상한에 펴진 것이 바뀌지 않는다(같은 식이 같은 답을 낸다).
  */
 export function decideCover(input: {
   mountedAt: number;
+  /** 구름 그림이 준비된 시각(아직이면 null) — 없으면 mountedAt + artWaitMs 로 본다 */
+  artAt?: number | null;
   readyAt: number | null;
   now: number;
   timing: CoverTiming;
 }): CoverDecision {
   const { mountedAt, readyAt, now, timing } = input;
   const capAt = mountedAt + timing.capMs;
-  const minAt = mountedAt + timing.minShowMs;
+  const minAt = drawStart(mountedAt, input.artAt ?? null, timing) + timing.minShowMs;
 
   let partAt: number | null;
   let reason: CoverDecision["reason"];
