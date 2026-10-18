@@ -1,5 +1,8 @@
-// 첫 접속 · 새로고침 로딩 덮개 — 손그림 구름이 화면을 덮은 채 천천히 흐르다가,
-// 지도가 준비되면 가운데가 열리며 구름이 커지면서 바깥으로 밀려나 지도가 드러난다(구름을 뚫고 내려가는 느낌).
+// 동작 줄이기(B+) 덮개 — 기기에 「동작 줄이기」 가 켜져 있을 때 VideoCloudCover 가 이것으로 넘긴다(직접 쓰지 않는다).
+// 손그림 구름 PNG 를 겹쳐 화면을 덮고(흐름 없음), 지도가 준비되면 가운데 구름부터 조금만 벌어지며 옅어진다 —
+// 그 설정이 막으려는 큰 확대 · 날아가는 움직임 없이 「구름이 걷히며 지도」 를 보인다(사용자 10-19).
+// 구름은 첫 화면부터 — 코드에 든 흐린 미리보기(cloudblur)로 바로 띄우고, 선명한 그림이 다 풀리면 겹쳐 나타난다.
+// 첫 접속 덮개(흐르다가 크게 벌어짐) · 시안 a · b · c · 하늘 결 견줌은 10-19 영상 방식으로 정하며 걷었다.
 // 이 폴더(src/cover)는 본 프로젝트로 그대로 옮겨 붙인다: react 와 이 폴더 밖을 import 하지 않고, 전역 CSS 를 건드리지 않는다.
 import {
   useEffect,
@@ -11,17 +14,10 @@ import {
 import "./cloudcover.css";
 import { ART_URL, artReady } from "./cloudart";
 import { BLUR_URL } from "./cloudblur";
-import {
-  buildClouds,
-  SKY_PART_MS,
-  type CoverDesign,
-  type Sky,
-} from "./cloudshape";
+import { buildClouds } from "./cloudshape";
 import {
   decideCover,
   markSeen,
-  pickMode,
-  readSeen,
   timingFor,
   type CoverDecision,
   type CoverPhase,
@@ -36,14 +32,8 @@ export interface CloudCoverProps {
   capMs?: number;
   /** 덮개가 다 사라진 뒤 한 번 */
   onGone?: () => void;
-  /** 펴지기가 시작될 때 한 번(펴지기 길이 ms) — 밑의 지도를 같이 움직이고 싶을 때(시안 b) */
+  /** 펴지기가 시작될 때 한 번(펴지기 길이 ms) */
   onPartStart?: (partMs: number) => void;
-  /** 시안 고르기(시안 단계에서만 · 고른 뒤 뺀다) — 펴지는 꼴 */
-  design?: CoverDesign;
-  /** 시안 고르기(시안 단계에서만 · 고른 뒤 뺀다) — 하늘 결(구름 수 · 크기 · 펴지기 길이) */
-  sky?: Sky;
-  /** 동작 줄이기를 밖에서 정함 — 없으면 prefers-reduced-motion 을 따른다 */
-  reducedMotion?: boolean;
 }
 
 type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
@@ -51,13 +41,8 @@ type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 const session = () =>
   typeof window === "undefined" ? null : window.sessionStorage;
 
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
-}
+/** 늘 동작 줄이기 갈래 — 같은 창 두 번째여도 그 설정이 앞선다(coverclock.pickMode 와 같은 차례) */
+const MODE = "reduced" as const;
 
 export function CloudCover({
   ready,
@@ -65,28 +50,14 @@ export function CloudCover({
   capMs,
   onGone,
   onPartStart,
-  design = "a",
-  sky = "mid",
-  reducedMotion,
 }: CloudCoverProps) {
   const [mountedAt] = useState(() => performance.now());
-  const [mode] = useState(() =>
-    pickMode({
-      reducedMotion: reducedMotion ?? prefersReducedMotion(),
-      seenBefore: readSeen(session),
-    }),
-  );
-  const timing = useMemo(
-    () => timingFor(mode, capMs, SKY_PART_MS[sky]),
-    [mode, capMs, sky],
-  );
-  // 동작 줄이기도 구름은 보인다(B안) — 흐름 · 터짐은 CSS 가 끈다(data-mode="reduced")
-  const clouds = useMemo(() => buildClouds(design, sky), [design, sky]);
+  const timing = useMemo(() => timingFor(MODE, capMs), [capMs]);
+  const clouds = useMemo(() => buildClouds(), []);
 
-  // 구름은 첫 화면부터 — 코드에 든 흐린 미리보기(cloudblur · data URL)로 바로 띄운다. 그래서 「구름이 보이기 시작한 때」(artAt) = 덮개가 뜬 때.
-  // 선명한 그림(assets/*.webp)은 다 받아져 해독되면(sharp) 그 위에 겹쳐 나타난다(사용자 10-19 「없앰 방식으로」 —
-  // 전엔 선명한 그림 6장 해독 약 0.3 초 동안 흰 바탕만 보였다).
+  // 흐린 미리보기는 코드에 들어 있어 덮개가 뜬 때부터 구름이 보인다 — 「구름이 보이기 시작한 때」 = 덮개가 뜬 때
   const artAt = mountedAt;
+  // 선명한 그림(assets/*.webp)은 이때 받기 · 해독을 시작하고(cloudart), 다 풀리면 겹쳐 나타난다
   const [sharp, setSharp] = useState(false);
   useEffect(() => {
     let live = true;
@@ -145,78 +116,62 @@ export function CloudCover({
   if (decision.phase === "gone") return null;
 
   const rootStyle: CSSVars = { "--cloudcover-part-ms": `${timing.partMs}ms` };
-  const shown = artAt !== null;
 
   return (
     <div
       className="cloudcover"
       style={rootStyle}
       data-phase={decision.phase}
-      data-mode={mode}
-      data-design={design}
-      data-sky={sky}
+      data-mode={MODE}
       data-reason={decision.reason ?? undefined}
-      data-shown={shown ? "1" : undefined}
+      data-shown="1"
       data-sharp={sharp ? "1" : undefined}
       role="progressbar"
       aria-label="지도를 불러오는 중"
       aria-busy={decision.phase === "draw"}
     >
       <div className="cloudcover-sheet" />
-      {shown && clouds.length > 0 ? (
-        <div className="cloudcover-sky">
-          {clouds.map((c) => {
-            const pieceStyle: CSSVars = {
-              "--x": `${c.x}%`,
-              "--y": `${c.y}%`,
-              "--w": `${c.w}vmax`,
-              "--ratio": c.ratio,
-              "--z": c.z,
-              "--dx": c.part.dx,
-              "--dy": c.part.dy,
-              "--s": c.part.scale,
-              "--o": c.part.opacity,
-              "--lag": c.part.lag,
-            };
-            const driftStyle: CSSVars = {
-              "--drift-s": `${c.drift.periodS}s`,
-              "--drift-phase": `${c.drift.phaseS}s`,
-              "--drift-x": `${c.drift.dx}vmax`,
-              "--drift-y": `${c.drift.dy}vmax`,
-            };
-            const artStyle: CSSVars = {
-              "--rot": `${c.rot}deg`,
-              "--flip": c.flip ? -1 : 1,
-            };
-            return (
-              <div
-                key={c.id}
-                className="cloudcover-piece"
-                style={pieceStyle}
-                data-art={c.art}
-                data-burst={c.part.opacity === 0 ? "1" : undefined}
-              >
-                <div className="cloudcover-drift" style={driftStyle}>
-                  <img
-                    className="cloudcover-art cloudcover-blur"
-                    src={BLUR_URL[c.art]}
-                    alt=""
-                    draggable={false}
-                    style={artStyle}
-                  />
-                  <img
-                    className="cloudcover-art cloudcover-sharp"
-                    src={ART_URL[c.art]}
-                    alt=""
-                    draggable={false}
-                    style={artStyle}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
+      <div className="cloudcover-sky">
+        {clouds.map((c) => {
+          const pieceStyle: CSSVars = {
+            "--x": `${c.x}%`,
+            "--y": `${c.y}%`,
+            "--w": `${c.w}vmax`,
+            "--ratio": c.ratio,
+            "--z": c.z,
+            "--dx": c.part.dx,
+            "--dy": c.part.dy,
+            "--lag": c.part.lag,
+          };
+          const artStyle: CSSVars = {
+            "--rot": `${c.rot}deg`,
+            "--flip": c.flip ? -1 : 1,
+          };
+          return (
+            <div
+              key={c.id}
+              className="cloudcover-piece"
+              style={pieceStyle}
+              data-art={c.art}
+            >
+              <img
+                className="cloudcover-art cloudcover-blur"
+                src={BLUR_URL[c.art]}
+                alt=""
+                draggable={false}
+                style={artStyle}
+              />
+              <img
+                className="cloudcover-art cloudcover-sharp"
+                src={ART_URL[c.art]}
+                alt=""
+                draggable={false}
+                style={artStyle}
+              />
+            </div>
+          );
+        })}
+      </div>
       {note ? (
         <p className="cloudcover-note" role="status">
           {note}

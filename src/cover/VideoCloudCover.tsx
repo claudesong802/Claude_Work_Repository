@@ -90,7 +90,6 @@ export function VideoCloudCover(props: VideoCloudCoverProps) {
       capMs={capMs}
       onGone={onGone}
       onPartStart={onPartStart}
-      reducedMotion
     />
   );
 }

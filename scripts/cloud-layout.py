@@ -183,8 +183,7 @@ def main() -> None:
     for c in rest + [c for c in best if c["center"]]:
         flip = ", flip: true" if c["flip"] else ""
         rot = f", rot: {c['rot']}" if c["rot"] else ""
-        row = min(5, max(0, round(c["y"] / 100 * 5)))
-        print(f'  {{ art: "{c["art"]}", x: {round(c["x"])}, y: {round(c["y"])}, w: {round(c["w"])}{flip}{rot}, row: {row} }},')
+        print(f'  {{ art: "{c["art"]}", x: {round(c["x"])}, y: {round(c["y"])}, w: {round(c["w"])}{flip}{rot} }},')
 
 
 if __name__ == "__main__":
