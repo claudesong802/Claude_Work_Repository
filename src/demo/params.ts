@@ -10,6 +10,8 @@ export interface DemoParams {
   warmMs: number;
   /** 동작 줄이기 흉내(prefers-reduced-motion 과 같은 갈래) */
   reduced: boolean;
+  /** 기기의 「동작 줄이기」 를 무시하고 첫 접속 모습을 강제로(motion=full) — iPad 설정을 바꾸지 않고 구름을 볼 때 */
+  forceMotion: boolean;
   /** sessionStorage 표시를 지우고 첫 접속처럼 */
   fresh: boolean;
   design: CoverDesign;
@@ -41,6 +43,7 @@ export function readParams(search: string): DemoParams {
     hang: on(q, "hang"),
     warmMs: num(q, "warm") ?? 0,
     reduced: on(q, "reduced"),
+    forceMotion: q.get("motion") === "full",
     fresh: on(q, "fresh"),
     design: isDesign(design) ? design : "a",
     sky: isSky(sky) ? sky : "mid",

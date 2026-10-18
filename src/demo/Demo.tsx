@@ -54,7 +54,7 @@ export function Demo({ params }: { params: DemoParams }) {
           capMs={params.capMs}
           design={params.design}
           sky={params.sky}
-          reducedMotion={params.reduced ? true : undefined}
+          reducedMotion={params.reduced ? true : params.forceMotion ? false : undefined}
           onGone={() => setCoverGone(true)}
           onPartStart={setApproachMs}
         />

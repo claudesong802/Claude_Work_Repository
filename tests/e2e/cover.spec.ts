@@ -89,6 +89,13 @@ test("동작 줄이기(prefers-reduced-motion)도 같은 갈래", async ({ page 
   await expect(page.locator(".cloudcover-piece")).toHaveCount(0);
 });
 
+test("기기가 동작 줄이기여도 motion=full 이면 첫 접속 모습(시연 확인용)", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?nomap=1&fresh=1&delay=800&motion=full");
+  await expect(cover(page)).toHaveAttribute("data-mode", "full");
+  await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
+});
+
 for (const design of ["a", "b", "c"]) {
   test(`시안 ${design}: 펴지기 동안 애니메이션은 transform · opacity 뿐`, async ({ page }) => {
     // 기다림 흐름이 도는 도중(1.2 초)에 펴지게 한다
