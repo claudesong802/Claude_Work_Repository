@@ -64,11 +64,13 @@ test("영상 덮개 · 곧바로 잇기: 준비 신호 뒤 곧 걷히고, 바퀴
 
 test("영상 덮개 · 동작 줄이기(B+): 영상 대신 구름 조각 덮개로, 조금만 벌어지며 옅어진다", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?engine=video&nomap=1&fresh=1&delay=800");
+  await page.goto("/?engine=video&nomap=1&fresh=1&delay=2500");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
   await expect(page.locator(".cloudcover video")).toHaveCount(0);
+  await expect(cover(page)).toHaveAttribute("data-shown", "1", { timeout: 5000 });
   await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
   const spread = await measureSpread(page, 600);
+  expect(spread.pieces).toBeGreaterThan(0);
   expect(spread.shift).toBeGreaterThan(0.005);
   expect(spread.shift).toBeLessThan(0.1);
   expect(spread.grow).toBeLessThan(1.1);

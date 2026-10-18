@@ -82,8 +82,10 @@ test("같은 창 두 번째(새로고침)는 펴지기만 짧게", async ({ page
 // 동작 줄이기(B+ · 사용자 10-19 「권장하는 방향대로」): 구름은 보이되 흐름 없이, 준비되면 가운데부터 조금만 벌어지며 옅어진다 —
 // 큰 확대 · 날아가는 움직임은 없다(그 설정이 막으려는 것). 양쪽을 잰다: 동작 줄이기는 작게 · 첫 접속은 크게
 test("동작 줄이기(주소 칸)면 구름은 보이고, 펴질 때 조금만 벌어지며 옅어진다(transform · opacity 뿐)", async ({ page }) => {
-  await page.goto("/?nomap=1&reduced=1&fresh=1&delay=800");
+  // 준비 신호는 구름 그림이 다 뜬 뒤에(느린 CI WebKit 은 해독이 1.2 초를 넘겨 구름 없이 펴지기가 시작된 적이 있다 — 그러면 잴 조각이 없다)
+  await page.goto("/?nomap=1&reduced=1&fresh=1&delay=2500");
   await expect(cover(page)).toHaveAttribute("data-mode", "reduced");
+  await expect(cover(page)).toHaveAttribute("data-shown", "1", { timeout: 5000 });
   await expect(page.locator(".cloudcover-piece").first()).toBeVisible();
   const [{ props, samples }, spread] = await Promise.all([partAnimationProps(page), measureSpread(page, REDUCED_PART)]);
   expect(samples).toBeGreaterThan(0);
@@ -96,9 +98,11 @@ test("동작 줄이기(주소 칸)면 구름은 보이고, 펴질 때 조금만 
 });
 
 test("첫 접속(견줌)은 크게 벌어진다 — 위 「작게」 가 재는 값이 실제로 가르는지", async ({ page }) => {
-  await page.goto("/?nomap=1&fresh=1&delay=800&design=a&motion=full");
+  await page.goto("/?nomap=1&fresh=1&delay=2500&design=a&motion=full");
   await expect(cover(page)).toHaveAttribute("data-mode", "full");
+  await expect(cover(page)).toHaveAttribute("data-shown", "1", { timeout: 5000 });
   const spread = await measureSpread(page, 600);
+  expect(spread.pieces).toBeGreaterThan(0);
   expect(Math.max(spread.shift, spread.grow - 1)).toBeGreaterThan(0.2);
 });
 
