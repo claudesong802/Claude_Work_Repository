@@ -48,24 +48,24 @@ export interface Cloud {
  * 빈틈을 재며 찾은 값이다(기다림 흐름의 양 끝에서도) — 손으로 고치면 그 도구를 다시 돌리고 e2e 「빈틈」 으로 확인한다.
  * 같은 그림은 멀리 두고 뒤집기 · 돌리기를 바꿔 나란히 반복돼 보이지 않게 한다.
  */
-type Spot = { art: ArtName; x: number; y: number; w: number; flip?: boolean; rot?: number; row: number };
+type Spot = { art: ArtName; x: number; y: number; w: number; flip?: boolean; rot?: number; row: number; center?: true };
 
 const SPARSE: Spot[] = [
-  { art: "wide", x: 89, y: 1, w: 50, flip: true, rot: 5, row: 0 },
-  { art: "original", x: 30, y: 7, w: 68, rot: -2, row: 0 },
-  { art: "billowy", x: 72, y: 11, w: 72, rot: 4, row: 1 },
-  { art: "wide", x: 54, y: 19, w: 57, row: 1 },
-  { art: "wispy", x: -9, y: 34, w: 69, flip: true, rot: 1, row: 2 },
-  { art: "curled", x: 9, y: 39, w: 67, flip: true, rot: 1, row: 2 },
-  { art: "diagonal", x: 32, y: 41, w: 41, rot: 1, row: 2 },
-  { art: "curled", x: 78, y: 59, w: 61, flip: true, rot: 4, row: 3 },
-  { art: "curled", x: -10, y: 66, w: 72, flip: true, row: 3 },
-  { art: "wispy", x: -2, y: 70, w: 55, flip: true, rot: -5, row: 3 },
-  { art: "billowy", x: 80, y: 77, w: 69, row: 4 },
-  { art: "diagonal", x: 36, y: 78, w: 63, flip: true, rot: -2, row: 4 },
-  { art: "original", x: 35, y: 93, w: 60, rot: -5, row: 5 },
+  { art: "wispy", x: 58, y: 4, w: 50, flip: true, rot: 3, row: 0 },
+  { art: "original", x: 57, y: 20, w: 60, flip: true, rot: 2, row: 1 },
+  { art: "curled", x: 23, y: 24, w: 68, flip: true, rot: -1, row: 1 },
+  { art: "curled", x: 76, y: 25, w: 72, flip: true, rot: 5, row: 1 },
+  { art: "diagonal", x: 4, y: 26, w: 58, rot: 4, row: 1 },
+  { art: "wide", x: 92, y: 28, w: 50, row: 1 },
+  { art: "original", x: 86, y: 34, w: 44, rot: -1, row: 2 },
+  { art: "billowy", x: 6, y: 39, w: 72, row: 2 },
+  { art: "curled", x: 65, y: 66, w: 71, rot: 4, row: 3 },
+  { art: "billowy", x: 87, y: 75, w: 71, rot: 4, row: 4 },
+  { art: "diagonal", x: 32, y: 82, w: 72, flip: true, rot: -2, row: 4 },
+  { art: "wispy", x: 29, y: 94, w: 65, flip: true, rot: 2, row: 5 },
+  { art: "wide", x: 3, y: 96, w: 66, flip: true, rot: 1, row: 5 },
   // 가운데 — 맨 앞에 두어 펴질 때 가장 먼저 커지며 사라진다(가운데가 열림)
-  { art: "billowy", x: 50, y: 57, w: 56, rot: -3, row: 3 },
+  { art: "billowy", x: 47, y: 58, w: 54, flip: true, rot: 4, row: 3, center: true },
 ];
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -79,7 +79,7 @@ export function centerDistance(x: number, y: number): number {
 /** 가운데 구름부터 먼저 — 모서리 구름은 펴지기 길이의 이만큼 늦게 출발한다 */
 export const CENTER_FIRST_LAG = 0.3;
 
-function partFor(design: CoverDesign, x: number, y: number, row: number): Cloud["part"] {
+function partFor(design: CoverDesign, x: number, y: number, row: number, center: boolean): Cloud["part"] {
   // 늦게 출발하는 몫(lag)은 펴지기 길이 안에 들어간다 — 끝나는 시각은 모두 같다
   const dist = centerDistance(x, y);
   switch (design) {
@@ -88,7 +88,8 @@ function partFor(design: CoverDesign, x: number, y: number, row: number): Cloud[
       // 영상 그대로: 가운데가 열리고 구름 하나하나가 약 2 배로 커지며 화면 중심에서 바깥으로 밀려난다(가속)
       // b 는 여기에 밑의 지도가 1.04 → 1 로 다가옴(지도 쪽 몫 · onPartStart)
       const lag = r2(dist * CENTER_FIRST_LAG);
-      if (dist < 0.12) return { dx: "0px", dy: "0px", scale: 2.6, opacity: 0, lag };
+      // 화면 가운데 구름은 밀려나지 않고 커지며 사라진다(가운데 구멍 · CSS 의 burst)
+      if (center) return { dx: "0px", dy: "0px", scale: 2.6, opacity: 0, lag: 0 };
       const vx = x - 50;
       const vy = y - 50;
       const l = Math.hypot(vx, vy) || 1;
@@ -120,32 +121,33 @@ const MID: Spot[] = [
   { art: "wispy", x: 71, y: 88, w: 52, rot: 1, row: 4 },
   { art: "wide", x: 88, y: 96, w: 53, flip: true, rot: 1, row: 5 },
   // 가운데 — 맨 앞에 두어 펴질 때 가장 먼저 커지며 사라진다(가운데가 열림)
-  { art: "billowy", x: 47, y: 44, w: 46, flip: true, rot: -5, row: 2 },
+  { art: "billowy", x: 47, y: 44, w: 46, flip: true, rot: -5, row: 2, center: true },
 ];
 
-// 잠정 — scripts/cloud-layout.py 를 22 장으로 다시 돌린 값으로 바꾼다
 const DENSE: Spot[] = [
-  { art: "billowy", x: 40, y: 5, w: 45, flip: true, rot: 1, row: 0 },
-  { art: "diagonal", x: 110, y: 7, w: 44, flip: true, rot: -4, row: 0 },
-  { art: "billowy", x: 74, y: 9, w: 45, flip: true, rot: -3, row: 0 },
-  { art: "curled", x: 2, y: 18, w: 45, flip: true, rot: -1, row: 1 },
-  { art: "original", x: 15, y: 24, w: 45, rot: 5, row: 1 },
-  { art: "wispy", x: 101, y: 25, w: 43, rot: -2, row: 1 },
-  { art: "original", x: 57, y: 31, w: 45, rot: 1, row: 2 },
-  { art: "wispy", x: 28, y: 35, w: 45, rot: -1, row: 2 },
-  { art: "wispy", x: 63, y: 36, w: 44, flip: true, rot: 4, row: 2 },
-  { art: "billowy", x: 89, y: 44, w: 45, flip: true, rot: -2, row: 2 },
-  { art: "diagonal", x: 10, y: 50, w: 44, rot: -1, row: 3 },
-  { art: "curled", x: -2, y: 54, w: 45, flip: true, rot: -2, row: 3 },
-  { art: "curled", x: 44, y: 56, w: 45, rot: -2, row: 3 },
-  { art: "original", x: 64, y: 66, w: 45, flip: true, rot: 5, row: 3 },
-  { art: "wide", x: 89, y: 77, w: 45, rot: 3, row: 4 },
-  { art: "curled", x: 94, y: 81, w: 45, rot: -1, row: 4 },
-  { art: "billowy", x: 20, y: 82, w: 45, rot: -4, row: 4 },
-  { art: "billowy", x: 58, y: 85, w: 45, flip: true, rot: 2, row: 4 },
-  { art: "diagonal", x: 105, y: 87, w: 45, flip: true, rot: -3, row: 4 },
+  { art: "diagonal", x: 72, y: 0, w: 47, rot: 5, row: 0 },
+  { art: "wispy", x: 12, y: 1, w: 49, rot: 2, row: 0 },
+  { art: "billowy", x: 42, y: 4, w: 48, flip: true, rot: -5, row: 0 },
+  { art: "wide", x: 4, y: 8, w: 48, rot: -2, row: 0 },
+  { art: "curled", x: 109, y: 19, w: 48, rot: 4, row: 1 },
+  { art: "billowy", x: 77, y: 25, w: 48, rot: 3, row: 1 },
+  { art: "original", x: 40, y: 28, w: 48, row: 1 },
+  { art: "curled", x: 17, y: 30, w: 48, rot: -1, row: 1 },
+  { art: "diagonal", x: 33, y: 36, w: 48, flip: true, row: 2 },
+  { art: "diagonal", x: 79, y: 43, w: 48, rot: 4, row: 2 },
+  { art: "original", x: 15, y: 50, w: 49, rot: -5, row: 3 },
+  { art: "wispy", x: 13, y: 59, w: 48, row: 3 },
+  { art: "curled", x: 85, y: 67, w: 48, rot: -2, row: 3 },
+  { art: "billowy", x: 18, y: 72, w: 48, rot: -3, row: 4 },
+  { art: "billowy", x: 95, y: 76, w: 48, rot: -5, row: 4 },
+  { art: "wide", x: 27, y: 76, w: 31, row: 4 },
+  { art: "curled", x: 53, y: 77, w: 48, rot: 3, row: 4 },
+  { art: "billowy", x: 53, y: 77, w: 47, rot: 5, row: 4 },
+  { art: "original", x: 27, y: 95, w: 46, rot: 5, row: 5 },
+  { art: "wide", x: 84, y: 96, w: 52, flip: true, rot: -4, row: 5 },
+  { art: "wispy", x: 4, y: 97, w: 36, flip: true, rot: 4, row: 5 },
   // 가운데 — 맨 앞에 두어 펴질 때 가장 먼저 커지며 사라진다(가운데가 열림)
-  { art: "billowy", x: 55, y: 48, w: 36, rot: -1, row: 2 },
+  { art: "billowy", x: 47, y: 45, w: 38, flip: true, rot: -4, row: 2, center: true },
 ];
 
 const LAYOUTS: Record<Sky, Spot[]> = { dense: DENSE, mid: MID, sparse: SPARSE };
@@ -164,7 +166,7 @@ export function buildClouds(design: CoverDesign, sky: Sky = "mid"): Cloud[] {
       z: order + 1,
       ratio: art.h / art.w,
       row: c.row,
-      part: partFor(design, c.x, c.y, c.row),
+      part: partFor(design, c.x, c.y, c.row, !!c.center),
       // 씨앗 대신 차례로 흩음 — 구름마다 흐르는 주기 · 위상 · 방향이 다르게(이동은 1 vmax 안 = iPad 에서 몇 px)
       drift: {
         periodS: r1(7 + ((order * 7) % 5)),

@@ -80,7 +80,8 @@ describe.each(SKIES)("하늘 %s: 펴지기", (sky) => {
       for (const c of buildClouds(design, sky)) {
         expect(c.part.scale).toBeGreaterThanOrEqual(2);
         if (c.part.opacity === 0) {
-          expect(centerDistance(c.x, c.y)).toBeLessThan(0.12);
+          // 사라지는 것은 가운데 구름 하나뿐 — 화면 가운데 가까이
+          expect(centerDistance(c.x, c.y)).toBeLessThan(0.15);
           continue;
         }
         const dx = parseFloat(c.part.dx);
@@ -88,7 +89,7 @@ describe.each(SKIES)("하늘 %s: 펴지기", (sky) => {
         // 옮겨 가는 방향이 가운데 → 구름 자리 방향과 같다
         expect(dx * (c.x - 50) + dy * (c.y - 50)).toBeGreaterThan(0);
       }
-      expect(buildClouds(design, sky).some((c) => c.part.opacity === 0)).toBe(true);
+      expect(buildClouds(design, sky).filter((c) => c.part.opacity === 0)).toHaveLength(1);
     });
   }
 
