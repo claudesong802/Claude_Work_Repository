@@ -1,7 +1,7 @@
-/* 구름 덮개 꼴 — 모든 클래스 앞머리는 cloudcover- · 전역 선택자(html · body · *)는 쓰지 않는다.
-   기다림 · 펴지기 모두 transform · opacity 만 움직인다(WebKit 이 합성 단계에서 따로 돌린다 · 구름 조각마다 레이어 하나).
-   쓰지 않는 것: SVG 필터 · blur · backdrop-filter · mask · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다.
-   구름 그림은 이 폴더의 WebP(assets/) — 같은 출처에서 첫 묶음과 함께 미리 받는다. */
+/* 구름 덮개 꼴 — 영상 덮개(VideoCloudCover · 첫 접속) · 동작 줄이기 덮개(CloudCover · PNG 조각)가 같이 쓴다.
+   모든 클래스 앞머리는 cloudcover- · 전역 선택자(html · body · *)는 쓰지 않는다.
+   움직이는 것은 transform · opacity 뿐(WebKit 이 합성 단계에서 따로 돌린다 · 구름 조각마다 레이어 하나).
+   쓰지 않는 것: SVG 필터 · blur · backdrop-filter · mask · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다. */
 
 .cloudcover {
   --cloudcover-paper: #ffffff; /* 지도 바탕 · 구름 안쪽과 같은 흰색 — 걷힌 뒤 이어지게 */
@@ -28,14 +28,11 @@
   background: var(--cloudcover-paper);
 }
 
-/* 그림이 다 풀리면 구름을 짧게 띄운다 */
+/* 구름을 짧게 띄운다(흐린 미리보기로 덮개가 뜬 때부터) */
 .cloudcover-sky {
   position: absolute;
   inset: 0;
   animation: cloudcover-show 220ms ease-out both;
-}
-.cloudcover[data-mode="short"] .cloudcover-sky {
-  animation: none;
 }
 
 /* ── 구름 조각: 조각마다 레이어 하나 ── */
@@ -48,15 +45,6 @@
   height: var(--h);
   z-index: var(--z);
   will-change: transform, opacity;
-}
-
-/* 기다림: 덮은 채 천천히 흐름 — 몇 px 이동 · 크기 1.00 ~ 1.03(카메라가 천천히 앞으로) */
-.cloudcover-drift {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  animation: cloudcover-drift var(--drift-s) var(--drift-phase) ease-in-out
-    infinite alternate;
 }
 
 .cloudcover-art {
@@ -78,34 +66,16 @@
   transition: opacity 200ms ease-out;
 }
 
-/* 펴지기: 가운데 구름부터 · 가속(ease-in · 절반 시점에 35 % 진행) · 커지며 바깥으로 — 늦게 출발한 조각도 같은 때에 끝난다 */
-.cloudcover[data-phase="part"] .cloudcover-piece {
-  animation: cloudcover-part calc(var(--cloudcover-part-ms) * (1 - var(--lag)))
-    calc(var(--cloudcover-part-ms) * var(--lag)) cubic-bezier(0.32, 0, 0.6, 0.5)
-    forwards;
-}
-/* 화면 가운데 구름: 앞 45 % 안에 커지며 사라져 가운데 구멍이 먼저 열린다(영상의 0.8 초) */
-.cloudcover[data-phase="part"] .cloudcover-piece[data-burst] {
-  animation: cloudcover-burst calc(var(--cloudcover-part-ms) * 0.45) ease-out
-    forwards;
-}
-
-/* 바탕은 펴지기 앞쪽에 사라져 가운데 구멍으로 지도가 먼저 보인다 */
+/* 바탕은 펴지기 앞쪽에 사라져 벌어진 틈으로 지도가 먼저 보인다(영상 덮개는 아래에서 끔 — 걷힘 영상이 돌 때 걷는다) */
 .cloudcover[data-phase="part"] .cloudcover-sheet,
 .cloudcover[data-phase="part"] .cloudcover-note {
   animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out
     forwards;
 }
 
-/* 동작 줄이기(B+): 구름 첫 장면은 보이되 흐름 없이 — 준비되면 가운데 구름부터(같은 lag) 조금만 바깥으로 벌어지며 옅어진다.
-   이동은 첫 접속 펴짐의 6 %(--dx · --dy × 0.06) · 크기 1.05 까지 — 큰 확대 · 날아가는 움직임은 없다(e2e 「조금만 벌어지며」 가 잰다).
-   바탕은 첫 접속처럼 앞쪽에 걷혀 벌어진 틈으로 지도가 보인다. */
-.cloudcover[data-mode="reduced"] .cloudcover-drift {
-  animation: none;
-}
-.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece,
-.cloudcover[data-mode="reduced"][data-phase="part"]
-  .cloudcover-piece[data-burst] {
+/* 동작 줄이기(B+ · CloudCover): 구름은 흐르지 않고 — 준비되면 가운데 구름부터(lag) 조금만 바깥으로 벌어지며 옅어진다.
+   이동은 화면 중심 → 구름 방향 80 vmax 의 6 %(--dx · --dy × 0.06) · 크기 1.05 까지 — 큰 확대 · 날아가는 움직임은 없다(e2e 「조금만 벌어지며」 가 잰다). */
+.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece {
   animation: cloudcover-part-soft
     calc(var(--cloudcover-part-ms) * (1 - var(--lag) * 0.5))
     calc(var(--cloudcover-part-ms) * var(--lag) * 0.5) ease-out forwards;
@@ -180,36 +150,10 @@
     opacity: 0;
   }
 }
-@keyframes cloudcover-drift {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(var(--drift-x), var(--drift-y), 0) scale(1.03);
-  }
-}
-@keyframes cloudcover-burst {
-  to {
-    transform: scale(var(--s));
-    opacity: 0;
-  }
-}
 @keyframes cloudcover-part-soft {
   to {
     transform: translate3d(calc(var(--dx) * 0.06), calc(var(--dy) * 0.06), 0)
       scale(1.05);
     opacity: 0;
-  }
-}
-@keyframes cloudcover-part {
-  to {
-    transform: translate3d(var(--dx), var(--dy), 0) scale(var(--s));
-    opacity: var(--o);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cloudcover-drift {
-    animation: none;
   }
 }

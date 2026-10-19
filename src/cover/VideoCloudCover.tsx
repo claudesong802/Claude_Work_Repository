@@ -90,7 +90,6 @@ export function VideoCloudCover(props: VideoCloudCoverProps) {
       capMs={capMs}
       onGone={onGone}
       onPartStart={onPartStart}
-      reducedMotion
     />
   );
 }
@@ -115,7 +114,13 @@ function VideoCover({
   const [kind] = useState<VideoKind>(
     () => kindProp ?? pickVideoKind(navigator),
   );
-  const [timing] = useState(() => timingFor(mode, capMs, partLength(mode)));
+  // 걷힘 길이의 정본 = 실제로 트는 걷힘 영상 길이(partLength) — timingFor("short") 는 PNG 덮개의 0.3 초를 주므로
+  // 덮어쓴다(전엔 두 번째 방문에 0.3 초가 onPartStart · 안전 시간으로 가 영상 0.5 초와 어긋났다 · 10-19).
+  // 언제 펴나(최소 보임 · 상한)는 timingFor 그대로.
+  const [timing] = useState(() => ({
+    ...timingFor(mode, capMs),
+    partMs: partLength(mode),
+  }));
   const src = VIDEO_URL[kind];
 
   const waitRef = useRef<HTMLVideoElement>(null);

@@ -35,7 +35,15 @@ const SLOW_FRAME_MS = 50;
 
 const ms = (v: number | null) => (v === null ? "—" : `${Math.round(v)}`);
 
-export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; ready: boolean; idleAt: number | null }) {
+export function DebugPanel({
+  params,
+  ready,
+  idleAt,
+}: {
+  params: DemoParams;
+  ready: boolean;
+  idleAt: number | null;
+}) {
   const [marks, setMarks] = useState<Marks>(() => blank());
 
   useEffect(() => {
@@ -49,17 +57,24 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
       if (el?.dataset.fallback) m.fallback = true;
       const phase = el?.dataset.phase ?? "gone";
       if (phase !== "draw" && m.partAt === null) m.partAt = performance.now();
-      if (phase === "gone" && m.partAt !== null && m.goneAt === null) m.goneAt = performance.now();
+      if (phase === "gone" && m.partAt !== null && m.goneAt === null)
+        m.goneAt = performance.now();
     };
     const mo = new MutationObserver(watch);
-    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase", "data-fallback"] });
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-phase", "data-fallback"],
+    });
     watch();
     // 프레임 간격: 한 프레임 구간이 펴지기 구간과 겹치면 펴지기 중 프레임으로 센다
     let last = performance.now();
     let raf = 0;
     const tick = (t: number) => {
       const gap = t - last;
-      const overlapsPart = m.partAt !== null && t > m.partAt && last < (m.goneAt ?? Infinity);
+      const overlapsPart =
+        m.partAt !== null && t > m.partAt && last < (m.goneAt ?? Infinity);
       last = t;
       m.maxGap = Math.max(m.maxGap, gap);
       if (overlapsPart) {
@@ -78,15 +93,17 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   }, []);
 
   useEffect(() => {
-    if (window.__coverMarks && idleAt !== null) window.__coverMarks.idleAt = idleAt;
+    if (window.__coverMarks && idleAt !== null)
+      window.__coverMarks.idleAt = idleAt;
   }, [idleAt]);
 
   useEffect(() => {
-    if (ready && window.__coverMarks && window.__coverMarks.readyAt === null) window.__coverMarks.readyAt = performance.now();
+    if (ready && window.__coverMarks && window.__coverMarks.readyAt === null)
+      window.__coverMarks.readyAt = performance.now();
   }, [ready]);
 
   const base = new URLSearchParams(window.location.search);
-  const link = (key: "design" | "sky" | "motion" | "engine" | "switch", value: string) => {
+  const link = (key: "motion" | "switch", value: string) => {
     const q = new URLSearchParams(base);
     q.set(key, value);
     q.set("fresh", "1");
@@ -95,25 +112,17 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
 
   return (
     <div className="demo-debug" aria-hidden="true">
-      {params.engine === "video"
-        ? `영상 덮개 · 형식 ${marks.kind ?? "—"} · 잇기 ${params.switchAt === "loop" ? "한 바퀴 끝" : "곧바로"}${marks.fallback ? " · 영상 못 틀어 그림으로 걷음" : ""} · devicePixelRatio ${window.devicePixelRatio}\n`
-        : `시안 ${params.design} · 하늘 ${params.sky} · devicePixelRatio ${window.devicePixelRatio}\n`}
+      {`영상 덮개 · 형식 ${marks.kind ?? "—"} · 잇기 ${params.switchAt === "loop" ? "한 바퀴 끝" : "곧바로"}${marks.fallback ? " · 영상 못 틀어 그림으로 걷음" : ""} · devicePixelRatio ${window.devicePixelRatio}\n`}
       {`갈래 ${MODE_LABEL[marks.mode ?? ""] ?? "—"} · 기기 동작 줄이기 ${reducedSetting() ? "켜짐" : "꺼짐"}\n`}
       {`지도 idle ${ms(marks.idleAt)} · 준비 ${ms(marks.readyAt)} · 펴지기 ${ms(marks.partAt)} → ${ms(marks.goneAt)} ms\n`}
       {`펴지기 중 프레임 ${marks.partFrames} · 가장 긴 간격 ${ms(marks.maxGapPart)} ms · ${SLOW_FRAME_MS} ms 넘은 것 ${marks.slowFramesPart}\n`}
       {`(페이지 전체 가장 긴 간격 ${ms(marks.maxGap)} ms)\n`}
       <span className="demo-debug-note">
-        {"프레임 간격은 메인 스레드 기준 — transform · opacity 펴지기는 합성 단계라\n숫자가 나빠도 눈엔 부드러울 수 있음 · 판정은 눈이 먼저\n"}
+        {
+          "프레임 간격은 메인 스레드 기준 — transform · opacity 펴지기는 합성 단계라\n숫자가 나빠도 눈엔 부드러울 수 있음 · 판정은 눈이 먼저\n"
+        }
       </span>
-      <a href={link("design", "a")}>a</a>
-      <a href={link("design", "b")}>b</a>
-      <a href={link("design", "c")}>c</a>
-      <a href={link("sky", "dense")}>가</a>
-      <a href={link("sky", "mid")}>다</a>
-      <a href={link("sky", "sparse")}>나</a>
       <a href={link("motion", "full")}>동작 강제</a>
-      <a href={link("engine", "png")}>PNG</a>
-      <a href={link("engine", "video")}>영상</a>
       <a href={link("switch", "loop")}>바퀴 끝</a>
       <a href={link("switch", "now")}>곧바로</a>
       <a href={window.location.search}>새로고침</a>
@@ -121,7 +130,11 @@ export function DebugPanel({ params, ready, idleAt }: { params: DemoParams; read
   );
 }
 
-const MODE_LABEL: Record<string, string> = { full: "첫 접속", short: "같은 창 두 번째", reduced: "동작 줄이기(구름 없음)" };
+const MODE_LABEL: Record<string, string> = {
+  full: "첫 접속",
+  short: "같은 창 두 번째",
+  reduced: "동작 줄이기(줄인 펴짐 · 구름 조각)",
+};
 
 function reducedSetting(): boolean {
   try {
@@ -132,5 +145,17 @@ function reducedSetting(): boolean {
 }
 
 function blank(): Marks {
-  return { mode: null, kind: null, fallback: false, idleAt: null, readyAt: null, partAt: null, goneAt: null, maxGap: 0, partFrames: 0, maxGapPart: 0, slowFramesPart: 0 };
+  return {
+    mode: null,
+    kind: null,
+    fallback: false,
+    idleAt: null,
+    readyAt: null,
+    partAt: null,
+    goneAt: null,
+    maxGap: 0,
+    partFrames: 0,
+    maxGapPart: 0,
+    slowFramesPart: 0,
+  };
 }

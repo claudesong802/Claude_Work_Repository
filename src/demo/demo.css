@@ -3,22 +3,6 @@
   inset: 0;
 }
 
-/* 시안 b: 지도가 살짝 멀리(1.04) 있다가 펴질 때 1 로 다가온다 — transform 만 */
-.demo-stage[data-approach="wait"] {
-  transform: scale(1.04);
-}
-.demo-stage[data-approach="go"] {
-  animation: demo-approach var(--approach-ms) cubic-bezier(0.25, 0.6, 0.3, 1) both;
-}
-@keyframes demo-approach {
-  from {
-    transform: scale(1.04);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
 .demo-map {
   position: fixed;
   inset: 0;
@@ -40,7 +24,10 @@
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #222;
   color: #222;
-  font: 12px/1.45 ui-monospace, Menlo, monospace;
+  font:
+    12px/1.45 ui-monospace,
+    Menlo,
+    monospace;
   white-space: pre;
 }
 

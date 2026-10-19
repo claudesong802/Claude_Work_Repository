@@ -1,6 +1,4 @@
-import type React from "react";
 import { useEffect, useState } from "react";
-import { CloudCover } from "../cover/CloudCover";
 import { VideoCloudCover } from "../cover/VideoCloudCover";
 import { DebugPanel } from "./DebugPanel";
 import { DemoMap } from "./DemoMap";
@@ -13,9 +11,6 @@ export function Demo({ params }: { params: DemoParams }) {
   const [warm, setWarm] = useState(params.warmMs > 0);
   const [ready, setReady] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
-  // 시안 b: 밑의 지도가 1.04 → 1 로 살짝 다가옴(내려앉는 느낌) — 덮개가 펴지기 시작할 때 같이 움직인다
-  const [approachMs, setApproachMs] = useState<number | null>(null);
-  const approach = params.design !== "b" || coverGone ? undefined : approachMs === null ? "wait" : "go";
 
   useEffect(() => {
     if (!warm) return;
@@ -32,11 +27,7 @@ export function Demo({ params }: { params: DemoParams }) {
 
   return (
     <>
-      <div
-        className="demo-stage"
-        data-approach={approach}
-        style={approachMs === null ? undefined : ({ "--approach-ms": `${approachMs}ms` } as React.CSSProperties)}
-      >
+      <div className="demo-stage">
         {params.noMap ? (
           <div className="demo-map" data-testid="demo-map" />
         ) : (
@@ -48,29 +39,21 @@ export function Demo({ params }: { params: DemoParams }) {
           />
         )}
       </div>
-      {coverGone ? null : params.engine === "video" ? (
+      {coverGone ? null : (
         <VideoCloudCover
           ready={ready}
           note={warm ? "서버 준비 중" : null}
           capMs={params.capMs}
           switchAt={params.switchAt}
-          reducedMotion={params.reduced ? true : params.forceMotion ? false : undefined}
+          reducedMotion={
+            params.reduced ? true : params.forceMotion ? false : undefined
+          }
           onGone={() => setCoverGone(true)}
-          onPartStart={setApproachMs}
-        />
-      ) : (
-        <CloudCover
-          ready={ready}
-          note={warm ? "서버 준비 중" : null}
-          capMs={params.capMs}
-          design={params.design}
-          sky={params.sky}
-          reducedMotion={params.reduced ? true : params.forceMotion ? false : undefined}
-          onGone={() => setCoverGone(true)}
-          onPartStart={setApproachMs}
         />
       )}
-      {params.debug ? <DebugPanel params={params} ready={ready} idleAt={idleAt} /> : null}
+      {params.debug ? (
+        <DebugPanel params={params} ready={ready} idleAt={idleAt} />
+      ) : null}
     </>
   );
 }

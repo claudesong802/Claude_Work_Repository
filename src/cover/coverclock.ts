@@ -24,7 +24,7 @@ export interface CoverTiming {
 }
 
 export const MIN_SHOW_MS = 600;
-/** 첫 접속 펴지기 기본 길이 — 하늘 결(sky)마다 따로 줄 수 있다(cloudshape SKY_PART_MS) */
+/** 첫 접속 펴지기 기본 길이 — 영상 덮개는 걷힘 영상 길이(cloudvideo REVEAL_MS)를 넘긴다 */
 export const PART_MS = 600;
 export const SHORT_PART_MS = 300;
 /** 동작 줄이기: 구름 첫 장면을 이만큼은 보인다(빨리 떠도 구름이 보이고 사라지게) */

@@ -1,5 +1,5 @@
 // e2e 공통 도우미(시험 파일이 아님 — 시험 파일끼리 서로 import 하면 시험이 두 번 등록된다)
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 /**
  * 펴지기가 시작되면 구름 조각의 애니메이션을 멈추고(pause) 시점을 0 과 partMs × 0.85 로 옮겨 위치 · 크기를 견준다 —
@@ -50,4 +50,41 @@ export function measureSpread(page: Page, partMs: number) {
       ),
     partMs,
   );
+}
+
+/**
+ * 덮개가 뜬 때부터 흐린 미리보기 구름 그림이 풀린 때까지(ms)를 남긴다 — page.goto 앞에 부른다.
+ * 화면 갱신(rAF)으로 재면 WebKit 은 부하가 걸리면 첫 rAF 자체가 0.33 ~ 0.56 초 늦게 돌아(그림은 이미 풀려 있어도) 문턱을 넘었다
+ * (10-19 클라우드 세션 잼 · 같은 때 DOM 변화 · load 기준은 0.09 초 안) — DOM 변화(MutationObserver)와 load 이벤트로 잰다.
+ * 덮개가 Suspense 로 늦게 뜨면 바탕만 있는 덮개가 먼저 서므로 그 차이가 그대로 잡힌다.
+ */
+export async function watchBlurShown(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shownAfter: number | null };
+    w.__shownAfter = null;
+    let coverAt: number | null = null;
+    const check = () => {
+      if (w.__shownAfter !== null) return;
+      if (coverAt === null && document.querySelector(".cloudcover"))
+        coverAt = performance.now();
+      const img = document.querySelector<HTMLImageElement>(".cloudcover-blur");
+      if (coverAt !== null && img && img.complete && img.naturalWidth > 0)
+        w.__shownAfter = performance.now() - coverAt;
+    };
+    new MutationObserver(check).observe(document, {
+      subtree: true,
+      childList: true,
+    });
+    document.addEventListener("load", check, true);
+  });
+}
+
+/** watchBlurShown 이 잰 값 — 나올 때까지 기다린다 */
+export async function blurShownAfter(page: Page): Promise<number> {
+  const read = () =>
+    page.evaluate(
+      () => (window as unknown as { __shownAfter: number | null }).__shownAfter,
+    );
+  await expect.poll(read).not.toBeNull();
+  return (await read())!;
 }
