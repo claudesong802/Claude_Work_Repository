@@ -56,7 +56,7 @@ export function measureSpread(page: Page, partMs: number) {
  * 덮개가 뜬 때부터 흐린 미리보기 구름 그림이 풀린 때까지(ms)를 남긴다 — page.goto 앞에 부른다.
  * 화면 갱신(rAF)으로 재면 WebKit 은 부하가 걸리면 첫 rAF 자체가 0.33 ~ 0.56 초 늦게 돌아(그림은 이미 풀려 있어도) 문턱을 넘었다
  * (10-19 클라우드 세션 잼 · 같은 때 DOM 변화 · load 기준은 0.09 초 안) — DOM 변화(MutationObserver)와 load 이벤트로 잰다.
- * 덮개가 Suspense 로 늦게 뜨면 바탕만 있는 덮개가 먼저 서므로 그 차이가 그대로 잡힌다.
+ * 흐린 미리보기가 없거나 덮개가 늦게 뜨면(바탕만 있는 덮개가 먼저 섬) 그 차이가 그대로 잡힌다.
  */
 export async function watchBlurShown(page: Page) {
   await page.addInitScript(() => {

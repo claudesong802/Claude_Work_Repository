@@ -1,8 +1,8 @@
-// 동작 줄이기(B+) 덮개 — 기기에 「동작 줄이기」 가 켜져 있을 때 VideoCloudCover 가 이것으로 넘긴다(직접 쓰지 않는다).
-// 손그림 구름 PNG 를 겹쳐 화면을 덮고(흐름 없음), 지도가 준비되면 가운데 구름부터 조금만 벌어지며 옅어진다 —
-// 그 설정이 막으려는 큰 확대 · 날아가는 움직임 없이 「구름이 걷히며 지도」 를 보인다(사용자 10-19).
+// 첫 접속 · 새로고침 로딩 덮개(B+) — 손그림 구름 PNG 를 겹쳐 화면을 덮고(흐름 없음), 지도가 준비되면
+// 가운데 구름부터 조금만 벌어지며 옅어져 지도가 드러난다(구름이 자연스럽게 걷히는 느낌).
+// 사용자 10-19 「모두 B+, 영상은 빼기」 — 처음엔 기기 「동작 줄이기」 용으로 만든 꼴이었으나 모두에게 쓰고, 영상 덮개는 걷었다.
+// 기기 「동작 줄이기」 는 갈래를 바꾸지 않는다(큰 확대 · 날아가는 움직임이 원래 없음).
 // 구름은 첫 화면부터 — 코드에 든 흐린 미리보기(cloudblur)로 바로 띄우고, 선명한 그림이 다 풀리면 겹쳐 나타난다.
-// 첫 접속 덮개(흐르다가 크게 벌어짐) · 시안 a · b · c · 하늘 결 견줌은 10-19 영상 방식으로 정하며 걷었다.
 // 이 폴더(src/cover)는 본 프로젝트로 그대로 옮겨 붙인다: react 와 이 폴더 밖을 import 하지 않고, 전역 CSS 를 건드리지 않는다.
 import {
   useEffect,
@@ -18,6 +18,8 @@ import { buildClouds } from "./cloudshape";
 import {
   decideCover,
   markSeen,
+  pickMode,
+  readSeen,
   timingFor,
   type CoverDecision,
   type CoverPhase,
@@ -41,9 +43,6 @@ type CSSVars = CSSProperties & Record<`--${string}`, string | number>;
 const session = () =>
   typeof window === "undefined" ? null : window.sessionStorage;
 
-/** 늘 동작 줄이기 갈래 — 같은 창 두 번째여도 그 설정이 앞선다(coverclock.pickMode 와 같은 차례) */
-const MODE = "reduced" as const;
-
 export function CloudCover({
   ready,
   note = null,
@@ -52,7 +51,9 @@ export function CloudCover({
   onPartStart,
 }: CloudCoverProps) {
   const [mountedAt] = useState(() => performance.now());
-  const timing = useMemo(() => timingFor(MODE, capMs), [capMs]);
+  // 같은 창 두 번째(새로고침)는 같은 꼴을 짧게 — 최소 보임 없이 · 펴짐 0.4 초
+  const [mode] = useState(() => pickMode({ seenBefore: readSeen(session) }));
+  const timing = useMemo(() => timingFor(mode, capMs), [mode, capMs]);
   const clouds = useMemo(() => buildClouds(), []);
 
   // 흐린 미리보기는 코드에 들어 있어 덮개가 뜬 때부터 구름이 보인다 — 「구름이 보이기 시작한 때」 = 덮개가 뜬 때
@@ -122,7 +123,7 @@ export function CloudCover({
       className="cloudcover"
       style={rootStyle}
       data-phase={decision.phase}
-      data-mode={MODE}
+      data-mode={mode}
       data-reason={decision.reason ?? undefined}
       data-shown="1"
       data-sharp={sharp ? "1" : undefined}

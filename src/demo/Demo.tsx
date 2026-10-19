@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { VideoCloudCover } from "../cover/VideoCloudCover";
+import { CloudCover } from "../cover/CloudCover";
 import { DebugPanel } from "./DebugPanel";
 import { DemoMap } from "./DemoMap";
 import type { DemoParams } from "./params";
@@ -40,19 +40,15 @@ export function Demo({ params }: { params: DemoParams }) {
         )}
       </div>
       {coverGone ? null : (
-        <VideoCloudCover
+        <CloudCover
           ready={ready}
           note={warm ? "서버 준비 중" : null}
           capMs={params.capMs}
-          switchAt={params.switchAt}
-          reducedMotion={
-            params.reduced ? true : params.forceMotion ? false : undefined
-          }
           onGone={() => setCoverGone(true)}
         />
       )}
       {params.debug ? (
-        <DebugPanel params={params} ready={ready} idleAt={idleAt} />
+        <DebugPanel ready={ready} idleAt={idleAt} />
       ) : null}
     </>
   );
