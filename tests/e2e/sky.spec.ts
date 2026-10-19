@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { blurShownAfter, watchBlurShown } from "./spread";
 
 // 덮기 시험 — 구름이 어느 화면비에서도 빈틈없이 덮는가 · 흐린 미리보기 먼저 · 가운데부터 열리는가.
-// 구름 조각(CloudCover)은 동작 줄이기에서만 나온다(첫 접속은 영상 · 사용자 10-19) — 주소에 reduced=1.
+// 덮개는 구름 조각 덮개(CloudCover · B+) 하나 — 사용자 10-19 「모두 B+, 영상은 빼기」.
 // 하늘 결 셋(dense · mid · sparse) 견줌은 10-19 정리하며 걷었다(남긴 것: mid 배치 하나).
-const SKY = "/?nomap=1&hang=1&fresh=1&reduced=1";
+const SKY = "/?nomap=1&hang=1&fresh=1";
 const SIZES = [
   { name: "iPad 세로", width: 768, height: 1024 },
   { name: "iPad 가로", width: 1024, height: 768 },
@@ -158,15 +158,15 @@ test("선명한 그림을 붙잡아 둬도 흐린 구름이 곧바로 보이고 
     .toBe("1");
 });
 
-test("동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 곧바로(크롬 0.15 초 · WebKit 0.26 초 안) 구름 그림이 풀려 보인다", async ({
+test("첫 화면부터 구름 — 덮개가 뜬 뒤 곧바로(크롬 0.15 초 · WebKit 0.26 초 안) 구름 그림이 풀려 보인다", async ({
   page,
   browserName,
 }) => {
   await watchBlurShown(page);
-  await page.goto("/?nomap=1&reduced=1&fresh=1&hang=1");
+  await page.goto("/?nomap=1&fresh=1&hang=1");
   const after = await blurShownAfter(page);
   // 문턱(잰 값 · 10-19 · rAF 로 잴 때 정함): 크롬 33 ms → 150 · CI WebKit 183 ~ 190 ms → 260 · DOM 변화 · load 로 재면 둘 다 0.09 초 안 —
-  // 가르려는 것은 예전의 0.3 초 넘는 흰 바탕(선명한 그림 해독 · Suspense 모음)이 없는가
+  // 가르려는 것은 예전의 0.3 초 넘는 흰 바탕(선명한 그림 해독 기다림)이 없는가
   expect(after).toBeLessThan(browserName === "chromium" ? 150 : 260);
 });
 
@@ -174,7 +174,7 @@ test("동작 줄이기도 첫 화면부터 구름 — 덮개가 뜬 뒤 곧바�
 test("펴지기는 가운데 구름부터(가운데에서 멀수록 늦게 출발)", async ({
   page,
 }) => {
-  await page.goto("/?nomap=1&delay=800&fresh=1&reduced=1");
+  await page.goto("/?nomap=1&delay=800&fresh=1");
   await expect(page.locator(".cloudcover")).toHaveAttribute(
     "data-phase",
     "part",

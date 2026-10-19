@@ -1,6 +1,5 @@
 // 구름 그림 주소와 미리 받기. CloudCover 가 뜰 때(첫 화면) artReady() 를 불러 내려받기 · 해독을 시작한다.
 // 그 전까지는 코드에 든 흐린 미리보기(cloudblur)가 구름을 그리므로 늦게 시작해도 흰 화면이 없다(10-19).
-// 이 모듈을 불러오는 순간 받지 않는 까닭: 영상 덮개를 쓰는 앱도 이 모듈을 함께 묶는다(동작 줄이기 갈래) — 보통 영상 사용자가 PNG 구름을 받지 않게.
 import billowy from "./assets/cloud-billowy.webp";
 import curled from "./assets/cloud-curled.webp";
 import diagonal from "./assets/cloud-diagonal.webp";

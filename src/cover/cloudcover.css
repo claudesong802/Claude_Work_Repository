@@ -1,4 +1,4 @@
-/* 구름 덮개 꼴 — 영상 덮개(VideoCloudCover · 첫 접속) · 동작 줄이기 덮개(CloudCover · PNG 조각)가 같이 쓴다.
+/* 구름 덮개(CloudCover · B+) 꼴 — 손그림 구름 PNG 조각.
    모든 클래스 앞머리는 cloudcover- · 전역 선택자(html · body · *)는 쓰지 않는다.
    움직이는 것은 transform · opacity 뿐(WebKit 이 합성 단계에서 따로 돌린다 · 구름 조각마다 레이어 하나).
    쓰지 않는 것: SVG 필터 · blur · backdrop-filter · mask · 바깥 글꼴 — iPad 에서 비싸거나 바깥 자원을 기다린다. */
@@ -66,16 +66,17 @@
   transition: opacity 200ms ease-out;
 }
 
-/* 바탕은 펴지기 앞쪽에 사라져 벌어진 틈으로 지도가 먼저 보인다(영상 덮개는 아래에서 끔 — 걷힘 영상이 돌 때 걷는다) */
+/* 바탕은 펴지기 앞쪽에 사라져 벌어진 틈으로 지도가 먼저 보인다 */
 .cloudcover[data-phase="part"] .cloudcover-sheet,
 .cloudcover[data-phase="part"] .cloudcover-note {
   animation: cloudcover-hide calc(var(--cloudcover-part-ms) * 0.4) ease-out
     forwards;
 }
 
-/* 동작 줄이기(B+ · CloudCover): 구름은 흐르지 않고 — 준비되면 가운데 구름부터(lag) 조금만 바깥으로 벌어지며 옅어진다.
-   이동은 화면 중심 → 구름 방향 80 vmax 의 6 %(--dx · --dy × 0.06) · 크기 1.05 까지 — 큰 확대 · 날아가는 움직임은 없다(e2e 「조금만 벌어지며」 가 잰다). */
-.cloudcover[data-mode="reduced"][data-phase="part"] .cloudcover-piece {
+/* 줄인 펴짐(B+ · 첫 접속 · 두 번째 모두): 구름은 흐르지 않고 — 준비되면 가운데 구름부터(lag) 조금만 바깥으로 벌어지며 옅어진다.
+   이동은 화면 중심 → 구름 방향 80 vmax 의 6 %(--dx · --dy × 0.06) · 크기 1.05 까지 — 큰 확대 · 날아가는 움직임은 없다(e2e 「조금만 벌어지며」 가 잰다).
+   길이는 --cloudcover-part-ms(첫 접속 0.6 초 · 두 번째 0.4 초 · coverclock). */
+.cloudcover[data-phase="part"] .cloudcover-piece {
   animation: cloudcover-part-soft
     calc(var(--cloudcover-part-ms) * (1 - var(--lag) * 0.5))
     calc(var(--cloudcover-part-ms) * var(--lag) * 0.5) ease-out forwards;
@@ -105,41 +106,6 @@
   color: var(--cloudcover-ink);
 }
 
-/* ── 영상 덮개(VideoCloudCover) — 바탕 · 첫 장면 그림 · 기다림 영상 · 걷힘 영상을 겹친다 ──
-   걷힘 영상이 실제로 돌기 시작하면(data-swapped) 밑의 셋을 한 번에 걷는다 — 걷힘 첫 프레임이 기다림 끝 프레임과 같아 이음매가 안 보인다.
-   영상을 못 틀면(data-fallback) 첫 장면 그림이 커지며 사라진다(transform · opacity 만). */
-.cloudcover-still,
-.cloudcover-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  -webkit-user-drag: none;
-  pointer-events: none;
-}
-.cloudcover-still[data-on="0"],
-.cloudcover-video[data-on="0"] {
-  opacity: 0;
-}
-.cloudcover--video[data-phase="part"] .cloudcover-sheet {
-  animation: none; /* PNG 덮개의 「바탕 먼저 걷기」 를 끈다 — 영상 덮개는 걷힘 영상이 돌 때 걷는다 */
-}
-.cloudcover--video[data-swapped] .cloudcover-sheet,
-.cloudcover--video[data-swapped] .cloudcover-still,
-.cloudcover--video[data-swapped] .cloudcover-video[data-role="wait"] {
-  opacity: 0;
-}
-.cloudcover--video[data-fallback][data-phase="part"] {
-  animation: cloudcover-fallback var(--cloudcover-part-ms) ease-in forwards;
-}
-
-@keyframes cloudcover-fallback {
-  to {
-    transform: scale(1.12);
-    opacity: 0;
-  }
-}
 @keyframes cloudcover-show {
   from {
     opacity: 0;

@@ -2,18 +2,18 @@
 // 화면(CloudCover.tsx)은 이 판정이 말하는 장면을 그리고, waitMs 뒤에 다시 묻기만 한다.
 
 /**
- * full = 첫 접속(그리기 → 펴지기) · short = 같은 창 두 번째(펴지기만 짧게) ·
- * reduced = 동작 줄이기 — 구름 첫 장면은 보이되 흐름 없이, 준비되면 가운데부터 조금만 벌어지며 옅어진다(줄인 펴짐)
- *   (B+ · 사용자 10-19 「권장하는 방향대로」 · 그 설정이 막으려는 것은 큰 확대 · 날아가는 움직임이지 그림이 아니다 —
- *    B안(제자리에서 옅어지기만)은 컨셉의 「펴짐」 이 안 보여 B+ 로 바꿈)
+ * full = 첫 접속 · short = 같은 창 두 번째(같은 꼴을 짧게).
+ * 두 갈래 모두 같은 꼴(B+): 구름은 흐르지 않고 덮개가 뜬 때부터 보이며, 준비되면 가운데부터 조금만 벌어지며 옅어진다.
+ * 기기 「동작 줄이기」 는 갈래를 바꾸지 않는다 — B+ 가 원래 그 설정을 위해 만든 움직임(큰 확대 · 날아감 없음)이고,
+ * 사용자가 10-19 이 꼴을 모두에게 쓰기로 정했다(「모두 B+, 영상은 빼기」).
  */
-export type CoverMode = "full" | "short" | "reduced";
+export type CoverMode = "full" | "short";
 
 /** draw = 그리기(로딩 중) · part = 펴지기 · gone = 다 사라짐(DOM 에서 뺌) */
 export type CoverPhase = "draw" | "part" | "gone";
 
 export interface CoverTiming {
-  /** 그리기 시작 뒤 이보다 먼저는 펴지지 않는다 — 첫 장면이 다 그려지는 길이 */
+  /** 구름이 보이기 시작한 뒤 이보다 먼저는 펴지지 않는다 — 빨리 준비돼도 구름이 보이고 걷히게 */
   minShowMs: number;
   /** 구름 그림이 이만큼 안 오면 기다리지 않고 그리기를 시작한다 */
   artWaitMs: number;
@@ -23,33 +23,32 @@ export interface CoverTiming {
   capMs: number;
 }
 
-export const MIN_SHOW_MS = 600;
-/** 첫 접속 펴지기 기본 길이 — 영상 덮개는 걷힘 영상 길이(cloudvideo REVEAL_MS)를 넘긴다 */
+/** 첫 접속: 구름을 이만큼은 보인다(B+ 의 최소 보임 그대로) */
+export const MIN_SHOW_MS = 400;
+/** 첫 접속 펴지기 길이(B+ 그대로 · 움직임 크기는 cloudcover.css cloudcover-part-soft) */
 export const PART_MS = 600;
-export const SHORT_PART_MS = 300;
-/** 동작 줄이기: 구름 첫 장면을 이만큼은 보인다(빨리 떠도 구름이 보이고 사라지게) */
-export const REDUCED_MIN_SHOW_MS = 400;
-/** 동작 줄이기: 줄인 펴짐 길이 — 첫 접속(0.5 ~ 0.8 초)과 비슷하게 · 움직임 크기만 작게(cloudcover.css cloudcover-part-soft) */
-export const REDUCED_PART_MS = 600;
+/**
+ * 같은 창 두 번째 펴지기 길이 — 첫 접속 0.6 초의 2/3(60 Hz 에서 24 프레임).
+ * 늦게 출발하는 몫(최대 펴지기 길이의 15 %)을 빼도 모서리 구름이 0.34 초 움직여 「벌어지며」 가 읽힌다.
+ * 예전 두 번째 0.3 초(PNG 큰 펴짐)는 이동이 작은 B+(6 %)에선 옅어지기만으로 보일 수 있어 쓰지 않았다 — iPad 에서 눈으로 확인할 값.
+ */
+export const SHORT_PART_MS = 400;
 export const DEFAULT_CAP_MS = 15000;
 export const ART_WAIT_MS = 1200;
 
 /** 같은 창에서 덮개를 이미 한 번 다 봤다는 표시(sessionStorage 열쇠) */
 export const SEEN_KEY = "cloudcover-seen";
 
-export function pickMode(opts: { reducedMotion: boolean; seenBefore: boolean }): CoverMode {
-  if (opts.reducedMotion) return "reduced";
+export function pickMode(opts: { seenBefore: boolean }): CoverMode {
   return opts.seenBefore ? "short" : "full";
 }
 
-export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS, partMs: number = PART_MS): CoverTiming {
+export function timingFor(mode: CoverMode, capMs: number = DEFAULT_CAP_MS): CoverTiming {
   switch (mode) {
     case "full":
-      return { minShowMs: MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs, capMs };
+      return { minShowMs: MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs: PART_MS, capMs };
     case "short":
       return { minShowMs: 0, artWaitMs: 0, partMs: SHORT_PART_MS, capMs };
-    case "reduced":
-      return { minShowMs: REDUCED_MIN_SHOW_MS, artWaitMs: ART_WAIT_MS, partMs: REDUCED_PART_MS, capMs };
   }
 }
 
