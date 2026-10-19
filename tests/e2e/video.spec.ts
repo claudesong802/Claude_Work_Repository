@@ -120,6 +120,56 @@ test("영상 덮개 · 같은 창 두 번째는 짧은 판", async ({ page }) =>
   await expect(cover(page)).toHaveCount(0, { timeout: 3000 });
 });
 
+/** 두 번째 방문 걷힘 길이 — 0.8 초 걷힘 영상을 1.6 배로 튼 길이(cloudvideo REVEAL_MS / SHORT_RATE) */
+const SHORT_REVEAL_MS = 500;
+
+test("영상 덮개 · 두 번째 방문의 걷힘 길이는 실제로 트는 영상 길이(약 0.5 초)", async ({
+  page,
+}) => {
+  // 전엔 timingFor("short") 의 0.3 초가 onPartStart · --cloudcover-part-ms · 안전 시간으로 갔다(10-19)
+  await page.goto("/?nomap=1&fresh=1&delay=100");
+  await expect(cover(page)).toHaveCount(0, { timeout: 8000 });
+  await page.goto("/?nomap=1&hang=1");
+  await expect(cover(page)).toHaveAttribute("data-mode", "short");
+  const partMs = await cover(page).evaluate((e) =>
+    parseFloat((e as HTMLElement).style.getPropertyValue("--cloudcover-part-ms")),
+  );
+  expect(Math.abs(partMs - SHORT_REVEAL_MS)).toBeLessThanOrEqual(50);
+});
+
+test("영상 덮개 · 두 번째 방문: 걷힘 영상의 ended 가 끝내 안 와도 걷힘 길이 + 1.5 초에 걷힌다", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== "chromium",
+    "걷힘 영상을 확실히 트는 크롬에서만 — 못 트는 엔진은 대체 길(0.45 초)로 간다",
+  );
+  await page.goto("/?nomap=1&fresh=1&delay=100");
+  await expect(cover(page)).toHaveCount(0, { timeout: 8000 });
+  await page.addInitScript(() => {
+    document.addEventListener("ended", (e) => e.stopImmediatePropagation(), true);
+    const w = window as unknown as { __at: Record<string, number> };
+    w.__at = {};
+    new MutationObserver(() => {
+      const p =
+        document.querySelector<HTMLElement>(".cloudcover")?.dataset.phase ??
+        ("part" in w.__at ? "gone" : null);
+      if (p && !(p in w.__at)) w.__at[p] = performance.now();
+    }).observe(document, { subtree: true, childList: true, attributes: true });
+  });
+  await page.goto("/?nomap=1&delay=100");
+  await expect(cover(page)).toHaveAttribute("data-mode", "short");
+  await expect(cover(page)).toHaveCount(0, { timeout: 4000 });
+  const at = await page.evaluate(
+    () => (window as unknown as { __at: Record<string, number> }).__at,
+  );
+  // 안전 시간 = 걷힘 길이 0.5 초 + 1.5 초 — 전처럼 0.3 초를 쓰면 1.8 초에 걷혀 아래 문턱에 걸린다
+  const waited = at.gone - at.part;
+  expect(waited).toBeGreaterThan(SHORT_REVEAL_MS + 1500 - 100);
+  expect(waited).toBeLessThan(SHORT_REVEAL_MS + 1500 + 800);
+});
+
 test("영상 덮개 · 바퀴 끝 잇기: 기다림 영상의 ended 가 끝내 안 와도 남은 바퀴 + 여유 뒤에 걷힌다", async ({
   page,
   browserName,

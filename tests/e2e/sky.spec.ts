@@ -55,6 +55,11 @@ async function openSky(page: Page) {
   );
   // 다 그려진 모습(선명한 그림)으로 잰다 — 흐린 미리보기 동안의 덮기는 「흐린 미리보기만으로도 빈틈 없이」 시험이 따로 잰다
   await expect(page.locator(".cloudcover")).toHaveAttribute("data-sharp", "1");
+  // 겹쳐 나타나는 0.2 초 전환은 끝 모습으로 건너뛴다 — 부하 걸린 WebKit 은 전환이 중간(투명도 0.36 · 0.43)에서
+  // 5 초 넘게 멈춘 적이 있다(10-19 클라우드 세션). 재는 것은 전환이 끝난 모습의 빈틈이다
+  await page.addStyleTag({
+    content: ".cloudcover-sharp{transition:none!important}",
+  });
   await expect
     .poll(() =>
       page

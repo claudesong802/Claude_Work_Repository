@@ -133,7 +133,7 @@ export function DebugPanel({
 const MODE_LABEL: Record<string, string> = {
   full: "첫 접속",
   short: "같은 창 두 번째",
-  reduced: "동작 줄이기(구름 없음)",
+  reduced: "동작 줄이기(줄인 펴짐 · 구름 조각)",
 };
 
 function reducedSetting(): boolean {
